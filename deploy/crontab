@@ -1,0 +1,6 @@
+# deploy/crontab
+# Backup cron.
+# Install with:  crontab -u www-data -l | cat - deploy/crontab | crontab -u www-data -
+
+# Weekly full backup (Sunday 2am)
+0 2 * * 0 /var/www/oceanovia/deploy/backup.sh >> /var/www/oceanovia/storage/logs/backup.log 2>&1
