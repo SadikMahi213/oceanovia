@@ -125,7 +125,7 @@ chown -R "$APP_USER:$APP_GROUP" "$APP_DIR"
 chmod -R 775 "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 
 echo "=== [9/9] Reloading services ==="
-systemctl reload php8.3-fpm
+systemctl reload php8.4-fpm
 systemctl reload nginx
 supervisorctl reread 2>/dev/null || true
 supervisorctl update 2>/dev/null || true
