@@ -21,9 +21,19 @@ class SupplierDashboardTest extends TestCase
             'status' => 'approved',
         ]);
 
-        $response = $this->actingAs($supplier)->get(route('supplier.inventory.index'));
+        $response = $this->actingAs($supplier)->get(route('supplier.dashboard'));
 
         $response->assertStatus(200);
+        $response->assertSee('Supplier Dashboard');
+    }
+
+    public function test_non_supplier_cannot_access_supplier_dashboard(): void
+    {
+        $customer = User::factory()->create(['role_type' => 'customer']);
+
+        $response = $this->actingAs($customer)->get(route('supplier.dashboard'));
+
+        $response->assertStatus(403);
     }
 
     public function test_supplier_can_update_inventory(): void

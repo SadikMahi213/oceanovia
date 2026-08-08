@@ -119,7 +119,7 @@
                                 <p class="text-sm font-medium">{{ Auth::user()->full_name }}</p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">{{ Auth::user()->email }}</p>
                             </div>
-                            <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <a href="{{ Auth::user()->getDashboardRoute() }}" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                                 My Dashboard
                             </a>

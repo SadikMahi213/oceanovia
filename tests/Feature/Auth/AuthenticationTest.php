@@ -42,6 +42,48 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_supplier_is_redirected_to_supplier_dashboard_after_login(): void
+    {
+        $supplier = User::factory()->create(['role_type' => 'supplier']);
+
+        $response = $this->post('/login', [
+            'email' => $supplier->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $this->assertSame('supplier', auth()->user()->role_type);
+        $response->assertRedirect('/supplier/dashboard');
+    }
+
+    public function test_seller_is_redirected_to_seller_dashboard_after_login(): void
+    {
+        $seller = User::factory()->create(['role_type' => 'seller']);
+
+        $response = $this->post('/login', [
+            'email' => $seller->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $this->assertSame('seller', auth()->user()->role_type);
+        $response->assertRedirect('/seller/dashboard');
+    }
+
+    public function test_customer_is_redirected_to_customer_dashboard_after_login(): void
+    {
+        $customer = User::factory()->create(['role_type' => 'customer']);
+
+        $response = $this->post('/login', [
+            'email' => $customer->email,
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticated();
+        $this->assertSame('customer', auth()->user()->role_type);
+        $response->assertRedirect('/dashboard');
+    }
+
     public function test_users_can_logout(): void
     {
         $user = User::factory()->create();

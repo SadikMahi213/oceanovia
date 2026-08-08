@@ -35,6 +35,16 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SupplierController extends Controller
 {
+    /**
+     * Month-expression that works on both SQLite (tests) and MySQL (production).
+     */
+    private static function monthExpression(): string
+    {
+        return DB::getDriverName() === 'mysql'
+            ? "DATE_FORMAT(created_at, '%Y-%m')"
+            : "strftime('%Y-%m', created_at)";
+    }
+
     // ─── Dashboard ───────────────────────────────────────────────────────────
 
     public function dashboard(): View
@@ -70,7 +80,7 @@ class SupplierController extends Controller
 
         $monthlySales = OrderItem::where('supplier_id', $supplierId)
             ->whereHas('order', fn($q) => $q->where('status', 'delivered'))
-            ->select(DB::raw("strftime('%Y-%m', created_at) as month"), DB::raw('SUM(subtotal) as total'), DB::raw('COUNT(DISTINCT order_id) as count'))
+            ->select(DB::raw(self::monthExpression().' as month'), DB::raw('SUM(subtotal) as total'), DB::raw('COUNT(DISTINCT order_id) as count'))
             ->groupBy('month')->orderBy('month', 'desc')->limit(12)->get();
 
         $topProducts = OrderItem::where('supplier_id', $supplierId)
@@ -820,7 +830,7 @@ class SupplierController extends Controller
             'revenue' => OrderItem::where('supplier_id', $supplierId)
                 ->whereHas('order', fn($q) => $q->where('status', 'delivered'))
                 ->whereBetween('created_at', [$from, $to])
-                ->select(DB::raw("strftime('%Y-%m', created_at) as month"), DB::raw('SUM(subtotal) as total'), DB::raw('COUNT(DISTINCT order_id) as count'))
+                ->select(DB::raw(self::monthExpression().' as month'), DB::raw('SUM(subtotal) as total'), DB::raw('COUNT(DISTINCT order_id) as count'))
                 ->groupBy('month')->paginate(20),
             default => collect([]),
         };
@@ -865,7 +875,7 @@ class SupplierController extends Controller
                 'revenue' => OrderItem::where('supplier_id', $supplierId)
                     ->whereHas('order', fn($q) => $q->where('status', 'delivered'))
                     ->whereBetween('created_at', [$from, $to])
-                    ->select(DB::raw("strftime('%Y-%m', created_at) as month"), DB::raw('SUM(subtotal) as total'), DB::raw('COUNT(DISTINCT order_id) as count'))
+                    ->select(DB::raw(self::monthExpression().' as month'), DB::raw('SUM(subtotal) as total'), DB::raw('COUNT(DISTINCT order_id) as count'))
                     ->groupBy('month')->get()
                     ->map(fn($r) => [$r->month, number_format($r->total, 2), '0.00', '0.00', number_format($r->total * 0.97, 2), $r->count]),
                 'inventory' => Inventory::where('supplier_id', $supplierId)->with('product')->get()
