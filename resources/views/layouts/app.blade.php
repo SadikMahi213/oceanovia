@@ -1,7 +1,16 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" x-data x-init="() => { if (localStorage.getItem('darkMode') === 'true') document.documentElement.classList.add('dark') }">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" x-data>
 <head>
     <meta charset="utf-8">
+    <script>
+        (function () {
+            try {
+                if (localStorage.getItem('darkMode') === 'true') {
+                    document.documentElement.classList.add('dark');
+                }
+            } catch (e) {}
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="user-authed" content="{{ auth()->check() ? '1' : '0' }}">

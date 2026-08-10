@@ -255,20 +255,4 @@
         </div>
     </section>
 
-    {{-- Newsletter CTA --}}
-    <section class="py-12 lg:py-16 bg-gray-50 dark:bg-gray-900/50">
-        <div class="max-w-7xl mx-auto px-4">
-            <div class="max-w-2xl mx-auto text-center">
-                <div class="w-14 h-14 bg-market-100 dark:bg-market-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-7 h-7 text-market-600 dark:text-market-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                </div>
-                <h2 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-3">Stay in the Loop</h2>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">Get notified about new products, exclusive deals, and seller stories.</p>
-                <form class="flex gap-2 max-w-md mx-auto">
-                    <input type="email" placeholder="Enter your email" class="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
-                    <button type="submit" class="px-6 py-3 bg-market-600 hover:bg-market-700 text-white text-sm font-medium rounded-xl transition-colors">Subscribe</button>
-                </form>
-            </div>
-        </div>
-    </section>
 </x-app-layout>

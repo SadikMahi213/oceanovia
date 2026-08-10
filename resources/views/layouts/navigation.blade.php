@@ -12,10 +12,6 @@
                     <a href="{{ route('login') }}" class="hover:text-market-600 dark:hover:text-market-400 transition-colors">Sign In</a>
                     <a href="{{ route('register') }}" class="hover:text-market-600 dark:hover:text-market-400 transition-colors">Register</a>
                 @endauth
-                <button @click="$store.app.toggleDarkMode()" class="hover:text-market-600 dark:hover:text-market-400 transition-colors">
-                    <svg x-show="!$store.app.darkMode" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-                    <svg x-show="$store.app.darkMode" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                </button>
             </div>
         </div>
     </div>
@@ -215,13 +211,6 @@
             <a href="{{ route('home') }}" class="block px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Home</a>
             <a href="{{ route('products.index') }}" class="block px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Shop</a>
             <a href="{{ route('products.deals') }}" class="block px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">🔥 Daily Deals</a>
-            <div class="border-t border-gray-100 dark:border-gray-700 my-2"></div>
-            <button @click="$store.app.toggleDarkMode()" class="flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                <svg x-show="!$store.app.darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-                <svg x-show="$store.app.darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                <span x-show="!$store.app.darkMode">Dark Mode</span>
-                <span x-show="$store.app.darkMode">Light Mode</span>
-            </button>
             <div class="border-t border-gray-100 dark:border-gray-700 my-2"></div>
             <template x-for="category in $store.menu.categories" :key="category.slug">
                 <a :href="'/categories/' + category.slug" class="block px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
