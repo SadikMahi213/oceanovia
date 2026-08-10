@@ -56,23 +56,24 @@ Alpine.store('cart', {
         } catch (e) { /* silent fail */ }
         finally { this._syncing = false; }
     },
-    addItem(product) {
+    addItem(product, quantity = 1) {
+        quantity = Number(quantity) || 1;
         const existing = this.items.find(i => i.id === product.id);
         if (existing) {
-            existing.quantity += 1;
+            existing.quantity = (Number(existing.quantity) || 0) + quantity;
         } else {
-            this.items.push({ ...product, quantity: 1 });
+            this.items.push({ ...product, quantity });
         }
         this.updateSummary();
-        this.tryServerAdd(product);
+        this.tryServerAdd(product, quantity);
     },
-    async tryServerAdd(product) {
+    async tryServerAdd(product, quantity = 1) {
         this._pendingAdd = true;
         try {
             await fetch('/cart/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content },
-                body: JSON.stringify({ product_id: product.id, quantity: 1 }),
+                body: JSON.stringify({ product_id: product.id, quantity }),
             });
         } catch (e) { /* silent fail for guests */ }
         finally { this._pendingAdd = false; }
@@ -84,13 +85,13 @@ Alpine.store('cart', {
     updateQuantity(productId, qty) {
         const item = this.items.find(i => i.id === productId);
         if (item) {
-            item.quantity = Math.max(1, qty);
+            item.quantity = Math.max(1, Number(qty) || 1);
             this.updateSummary();
         }
     },
     updateSummary() {
-        this.count = this.items.reduce((sum, i) => sum + i.quantity, 0);
-        this.total = this.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+        this.count = this.items.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
+        this.total = this.items.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0);
         localStorage.setItem('cart', JSON.stringify(this.items));
     },
     clearCart() {

@@ -41,7 +41,7 @@
                                     <button type="button" @click="showNewShipping = !showNewShipping" class="text-sm text-market-600 dark:text-market-400 hover:text-market-700 dark:hover:text-market-300 font-medium transition-colors" x-text="showNewShipping ? 'Cancel' : '+ Add new address'"></button>
                                 </div>
                             @endif
-                            <div x-show="!$addresses || $addresses->count() === 0 || showNewShipping" class="space-y-4">
+                            <div x-show="showNewShipping || {{ $addresses->isEmpty() ? 'true' : 'false' }}" class="space-y-4">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
