@@ -38,8 +38,10 @@ class BrandController extends Controller
             'description' => 'nullable|string|max:1000',
             'website'     => 'nullable|url|max:255',
             'sort_order'  => 'nullable|integer|min:0',
-            'is_active'   => 'boolean',
+            'is_active'   => 'sometimes|boolean',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active') ?? 0;
 
         if ($request->hasFile('logo')) {
             $validated['logo'] = $request->file('logo')->store('brands', 'public');
@@ -65,8 +67,10 @@ class BrandController extends Controller
             'description' => 'nullable|string|max:1000',
             'website'     => 'nullable|url|max:255',
             'sort_order'  => 'nullable|integer|min:0',
-            'is_active'   => 'boolean',
+            'is_active'   => 'sometimes|boolean',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active') ?? $brand->is_active;
 
         if ($request->hasFile('logo')) {
             $validated['logo'] = $request->file('logo')->store('brands', 'public');
