@@ -308,7 +308,8 @@ class SupplierController extends Controller
         $orders = Order::whereIn('id', $orderIds)
             ->with(['items' => fn($q) => $q->where('supplier_id', auth()->id())->with('product')])
             ->latest()->paginate(15);
-        return view('supplier.orders.index', compact('orders'));
+        $filter = null;
+        return view('supplier.orders.index', compact('orders', 'filter'));
     }
 
     public function orderShow(Order $order): View
