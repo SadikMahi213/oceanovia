@@ -44,7 +44,7 @@ class SellerController extends Controller
 
         $totalRevenue = OrderItem::where('seller_id', $sellerId)
             ->whereHas('order', fn($q) => $q->where('status', '!=', 'cancelled'))
-            ->sum('subtotal');
+            ->sum('subtotal') ?? 0;
 
         $pendingOrders = OrderItem::where('seller_id', $sellerId)
             ->where('status', 'pending')
@@ -89,7 +89,7 @@ class SellerController extends Controller
 
         $totalEarnings = SellerBalance::bySeller($sellerId)->value('balance') ?? 0;
 
-        $pendingBalance = Commission::bySeller($sellerId)->pending()->sum('amount');
+        $pendingBalance = Commission::bySeller($sellerId)->pending()->sum('amount') ?? 0;
 
         $profile = auth()->user()->sellerProfile;
 
