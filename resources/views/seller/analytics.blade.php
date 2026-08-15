@@ -34,12 +34,12 @@
                                         @if($salesData->count() > 0)
                                             @foreach($salesData as $i => $month)
                                                 @php
-                                                    $barH = ($month->total / $maxVal) * 180;
+                                                    $barH = ($month['total'] / $maxVal) * 180;
                                                     $barW = 600 / $barCount - 20;
                                                     $x = $i * (600 / $barCount) + 10;
                                                 @endphp
                                                 <rect x="{{ $x }}" y="{{ 200 - $barH }}" width="{{ max($barW, 10) }}" height="{{ $barH }}" rx="4" fill="url(#barGradient)" />
-                                                <text x="{{ $x + $barW / 2 }}" y="195" text-anchor="middle" class="text-[10px]" fill="#9ca3af">{{ $month->month ?? '' }}</text>
+                                                <text x="{{ $x + $barW / 2 }}" y="195" text-anchor="middle" class="text-[10px]" fill="#9ca3af">{{ $month['month'] ?? '' }}</text>
                                             @endforeach
                                         @else
                                             @for($i = 0; $i < 6; $i++)
@@ -103,9 +103,9 @@
                                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                                         @forelse($monthlySales ?? [] as $month)
                                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                                <td class="px-5 py-3 text-sm text-gray-900 dark:text-white font-medium">{{ $month->month ?? 'N/A' }}</td>
-                                                <td class="px-5 py-3 text-sm text-gray-700 dark:text-gray-300 text-right">{{ $month->count ?? 0 }}</td>
-                                                <td class="px-5 py-3 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($month->total ?? 0, 2) }}</td>
+                                                <td class="px-5 py-3 text-sm text-gray-900 dark:text-white font-medium">{{ $month['month'] ?? 'N/A' }}</td>
+                                                <td class="px-5 py-3 text-sm text-gray-700 dark:text-gray-300 text-right">{{ $month['count'] ?? 0 }}</td>
+                                                <td class="px-5 py-3 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($month['total'] ?? 0, 2) }}</td>
                                             </tr>
                                         @empty
                                             <tr>
