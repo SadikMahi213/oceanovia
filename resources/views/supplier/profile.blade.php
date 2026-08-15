@@ -194,7 +194,7 @@
                                     $rawBank = old('bank_account', $profile?->bank_account ?? []);
                                     $bankEntries = [];
                                     if (!empty($rawBank)) {
-                                        $isIndexed = array_keys($rawBank) === range(0, count($rawBank) - 1) && isset($rawBank[0]['key'] ?? null);
+                                        $isIndexed = array_keys($rawBank) === range(0, count($rawBank) - 1) && ($rawBank[0]['key'] ?? null) !== null;
                                         if ($isIndexed) {
                                             $bankEntries = $rawBank;
                                         } else {
