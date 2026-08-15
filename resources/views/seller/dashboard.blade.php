@@ -74,7 +74,7 @@
                                                 stroke-width="3"
                                                 stroke-linecap="round"
                                                 stroke-linejoin="round"
-                                                points="{{ $monthlySales->map(fn($m, $i) => (($i + 1) * 50) . ',' . (180 - ($m->total / (collect($monthlySales)->max('total') ?: 1) * 140)))->implode(' ') }}"
+                                                points="{{ collect($monthlySales)->map(fn($m, $i) => (($i + 1) * 50) . ',' . (180 - ($m['total'] / (collect($monthlySales)->max('total') ?: 1) * 140)))->implode(' ') }}"
                                             />
                                             <defs>
                                                 <linearGradient id="salesGradient" x1="0" y1="0" x2="1" y2="0">
