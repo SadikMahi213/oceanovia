@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TaxRate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class TaxRateController extends Controller
@@ -21,18 +22,22 @@ class TaxRateController extends Controller
     {
         return view('admin.tax-rates.form', [
             'taxRate' => null,
-            'states'  => static::states(),
+            'states' => static::states(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
+        $request->merge(['state_code' => strtoupper(trim((string) $request->input('state_code')))]);
+
         $validated = $request->validate([
-            'state_code' => 'required|string|size:2|unique:tax_rates,state_code',
-            'rate'       => 'required|numeric|min:0|max:100',
-            'name'       => 'required|string|max:255',
-            'is_active'  => 'boolean',
+            'state_code' => ['required', 'string', 'size:2', Rule::unique('tax_rates', 'state_code')->whereNull('deleted_at')],
+            'rate' => 'required|numeric|min:0|max:100',
+            'name' => 'required|string|max:255',
+            'is_active' => 'boolean',
         ]);
+
+        $validated['state_code'] = strtoupper(trim($validated['state_code']));
 
         TaxRate::create($validated);
 
@@ -44,7 +49,7 @@ class TaxRateController extends Controller
     {
         return view('admin.tax-rates.form', [
             'taxRate' => $taxRate,
-            'states'  => static::states(),
+            'states' => static::states(),
         ]);
     }
 
@@ -72,12 +77,16 @@ class TaxRateController extends Controller
 
     public function update(Request $request, TaxRate $taxRate): RedirectResponse
     {
+        $request->merge(['state_code' => strtoupper(trim((string) $request->input('state_code')))]);
+
         $validated = $request->validate([
-            'state_code' => 'required|string|size:2|unique:tax_rates,state_code,' . $taxRate->id,
-            'rate'       => 'required|numeric|min:0|max:100',
-            'name'       => 'required|string|max:255',
-            'is_active'  => 'boolean',
+            'state_code' => ['required', 'string', 'size:2', Rule::unique('tax_rates', 'state_code')->ignore($taxRate->id)->whereNull('deleted_at')],
+            'rate' => 'required|numeric|min:0|max:100',
+            'name' => 'required|string|max:255',
+            'is_active' => 'boolean',
         ]);
+
+        $validated['state_code'] = strtoupper(trim($validated['state_code']));
 
         $taxRate->update($validated);
 
@@ -87,10 +96,10 @@ class TaxRateController extends Controller
 
     public function toggle(TaxRate $taxRate): RedirectResponse
     {
-        $taxRate->update(['is_active' => !$taxRate->is_active]);
+        $taxRate->update(['is_active' => ! $taxRate->is_active]);
 
         return redirect()->route('admin.tax-rates.index')
-            ->with('success', 'Tax rate ' . ($taxRate->is_active ? 'activated' : 'deactivated') . ' successfully.');
+            ->with('success', 'Tax rate '.($taxRate->is_active ? 'activated' : 'deactivated').' successfully.');
     }
 
     public function destroy(TaxRate $taxRate): RedirectResponse
