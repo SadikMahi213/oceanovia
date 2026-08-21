@@ -180,16 +180,16 @@
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-500 dark:text-gray-400">Shipping</span>
-                                    <span class="font-medium text-green-600 dark:text-green-400">Free</span>
+                                    <span class="font-medium" :class="$store.cart.shipping === 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'" x-text="$store.cart.shipping === 0 ? 'Free' : `$${$store.cart.shipping.toFixed(2)}`"></span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-gray-500 dark:text-gray-400">Tax (8%)</span>
-                                    <span class="font-medium text-gray-900 dark:text-white" x-text="`$${($store.cart.total * 0.08).toFixed(2)}`"></span>
+                                    <span class="text-gray-500 dark:text-gray-400">Tax</span>
+                                    <span class="font-medium text-gray-900 dark:text-white" x-text="`$${$store.cart.tax.toFixed(2)}`"></span>
                                 </div>
                                 <div class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-3">
                                     <div class="flex items-center justify-between">
                                         <span class="text-base font-bold text-gray-900 dark:text-white">Total</span>
-                                        <span class="text-xl font-bold text-market-600 dark:text-market-400" x-text="`$${($store.cart.total * 1.08).toFixed(2)}`"></span>
+                                        <span class="text-xl font-bold text-market-600 dark:text-market-400" x-text="`$${$store.cart.grandTotal.toFixed(2)}`"></span>
                                     </div>
                                 </div>
                             </div>

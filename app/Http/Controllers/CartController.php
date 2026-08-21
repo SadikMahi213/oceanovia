@@ -36,7 +36,7 @@ class CartController extends Controller
         $product = Product::published()->with('inventory')->findOrFail($request->product_id);
         $quantity = $request->integer('quantity', 1);
 
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return response()->json([
                 'cart_count' => $quantity,
                 'total' => $product->price * $quantity,
@@ -90,11 +90,26 @@ class CartController extends Controller
 
     public function remove(int $id): JsonResponse
     {
-        $cartItem = CartItem::with('cart')
-            ->whereHas('cart', fn ($q) => $q->where('user_id', auth()->id()))
-            ->findOrFail($id);
+        $cart = Cart::where('user_id', auth()->id())->first();
 
-        $cart = $cartItem->cart;
+        if (! $cart) {
+            return response()->json(['cart_count' => 0, 'total' => 0]);
+        }
+
+        $cartItem = $cart->items()->where('id', $id)->first();
+        if (! $cartItem) {
+            $cartItem = $cart->items()->where('product_id', $id)->first();
+        }
+
+        if (! $cartItem) {
+            $cart->load('items');
+
+            return response()->json([
+                'cart_count' => $cart->items_count,
+                'total' => $cart->total,
+            ]);
+        }
+
         $cartItem->delete();
         $cart->load('items');
 
@@ -106,7 +121,7 @@ class CartController extends Controller
 
     public function sync(Request $request): JsonResponse
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return response()->json(['synced' => true]);
         }
 
@@ -118,9 +133,18 @@ class CartController extends Controller
 
         $cart = Cart::firstOrCreate(['user_id' => auth()->id()], ['session_id' => null]);
 
+        $incomingIds = collect($request->items)->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        // Remove items that are no longer in the incoming list (persist deletions)
+        if (empty($incomingIds)) {
+            $cart->items()->delete();
+        } else {
+            $cart->items()->whereNotIn('product_id', $incomingIds)->delete();
+        }
+
         foreach ($request->items as $item) {
             $product = Product::published()->find($item['id']);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -137,7 +161,7 @@ class CartController extends Controller
             }
         }
 
-        $cart->load('items.product');
+        $cart->load('items.product.inventory', 'items.product.seller');
 
         return response()->json([
             'synced' => true,
@@ -145,11 +169,15 @@ class CartController extends Controller
             'total' => $cart->total,
             'items' => $cart->items->map(fn ($i) => [
                 'id' => $i->product_id,
+                'cartItemId' => $i->id,
                 'name' => $i->product->name,
                 'price' => (float) $i->unit_price,
                 'slug' => $i->product->slug,
                 'image' => $i->product->image_url,
                 'quantity' => $i->quantity,
+                'sellerId' => $i->product->seller_id,
+                'supplierId' => $i->product->inventory?->supplier_id,
+                'weight' => (float) ($i->product->weight ?? 0),
             ])->values(),
         ]);
     }

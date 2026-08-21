@@ -23,6 +23,9 @@ Alpine.store('cart', {
     items: [],
     count: 0,
     total: 0,
+    shipping: 0,
+    tax: 0,
+    grandTotal: 0,
     _syncing: false,
     _pendingAdd: false,
     init() {
@@ -81,18 +84,70 @@ Alpine.store('cart', {
     removeItem(productId) {
         this.items = this.items.filter(i => i.id !== productId);
         this.updateSummary();
+        if (document.querySelector('meta[name="user-authed"]')?.content === '1') {
+            this.syncWithServer();
+            fetch(`/cart/${productId}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content, 'Accept': 'application/json' },
+            }).catch(() => {});
+        }
     },
     updateQuantity(productId, qty) {
         const item = this.items.find(i => i.id === productId);
         if (item) {
             item.quantity = Math.max(1, Number(qty) || 1);
             this.updateSummary();
+            if (document.querySelector('meta[name="user-authed"]')?.content === '1') {
+                // Persist quantity change to server
+                const cartItemId = item.cartItemId;
+                if (cartItemId) {
+                    fetch('/cart/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content },
+                        body: JSON.stringify({ cart_item_id: cartItemId, quantity: item.quantity }),
+                    }).catch(() => {});
+                } else {
+                    this.syncWithServer();
+                }
+            }
         }
     },
     updateSummary() {
         this.count = this.items.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0);
         this.total = this.items.reduce((sum, i) => sum + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0);
+        this.shipping = this.calculateShipping();
+        this.tax = Math.round(this.total * 0.08 * 100) / 100;
+        this.grandTotal = Math.round((this.total + this.shipping + this.tax) * 100) / 100;
         localStorage.setItem('cart', JSON.stringify(this.items));
+    },
+    calculateShipping() {
+        if (this.items.length === 0) return 0;
+        // Group by vendor (supplierId preferred, else sellerId)
+        const groups = {};
+        this.items.forEach(i => {
+            const vendor = i.supplierId ? `supplier_${i.supplierId}` : (i.sellerId ? `seller_${i.sellerId}` : 'default');
+            if (!groups[vendor]) groups[vendor] = { subtotal: 0, weight: 0 };
+            groups[vendor].subtotal += (Number(i.price) || 0) * (Number(i.quantity) || 0);
+            groups[vendor].weight += (Number(i.weight) || 0) * (Number(i.quantity) || 0);
+        });
+        let totalShipping = 0;
+        for (const key in groups) {
+            const g = groups[key];
+            const heavy = g.weight > 5 ? 3 : 0;
+            // Free over $50 per vendor, else $5.99 + heavy surcharge (mirrors ShippingService fallback)
+            const cost = g.subtotal >= 50 ? 0 + heavy : 5.99 + heavy;
+            totalShipping += cost;
+        }
+        // If no vendor info yet (old localStorage items), fallback to single vendor logic
+        if (Object.keys(groups).length === 1 && groups['default']) {
+            const g = groups['default'];
+            const heavy = g.weight > 5 ? 3 : 0;
+            return g.subtotal >= 50 ? 0 + heavy : 5.99 + heavy;
+        }
+        return Math.round(totalShipping * 100) / 100;
+    },
+    get shippingText() {
+        return this.shipping === 0 ? 'Free' : `$${this.shipping.toFixed(2)}`;
     },
     clearCart() {
         this.items = [];

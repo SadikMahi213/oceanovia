@@ -4,16 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Events\OrderPlaced;
 use App\Jobs\ProcessOrder;
-use App\Models\Cart;
 use App\Models\Address;
+use App\Models\Cart;
+use App\Models\Inventory;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Services\CommissionService;
 use App\Services\CouponService;
 use App\Services\PayoutService;
+use App\Services\ShippingService;
 use App\Services\TaxService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -30,13 +33,20 @@ class CheckoutController extends Controller
             ->where('user_id', auth()->id())
             ->first();
 
-        if (!$cart || $cart->items->isEmpty()) {
+        if (! $cart || $cart->items->isEmpty()) {
             return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
         }
 
         $addresses = auth()->user()->addresses;
 
-        return view('checkout.index', compact('cart', 'addresses'));
+        // Pre-calculate shipping/tax for preview (using first address if available)
+        $previewAddress = $addresses->first();
+        $shippingService = app(ShippingService::class);
+        $taxService = app(TaxService::class);
+        $shippingPreview = $shippingService->calculate($cart, $previewAddress);
+        $taxPreview = $previewAddress ? $taxService->calculate($cart->total, $previewAddress->state) : ['amount' => 0, 'rate' => 0, 'name' => 'No Tax'];
+
+        return view('checkout.index', compact('cart', 'addresses', 'shippingPreview', 'taxPreview'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -100,9 +110,27 @@ class CheckoutController extends Controller
 
         $order = DB::transaction(function () use ($user, $cart, $shippingAddress, $billingAddress, $request) {
             $subtotal = $cart->total;
-            $shippingCost = 0;
-            $tax = 0;
+
+            // Calculate shipping per vendor (multivendor)
+            $shippingService = app(ShippingService::class);
+            $shippingResult = $shippingService->calculate($cart, $shippingAddress);
+            $shippingCost = $shippingResult['total'];
+
+            // Calculate tax based on shipping address state
+            $taxService = app(TaxService::class);
+            $taxResult = $taxService->calculate($subtotal, $shippingAddress->state);
+            $tax = $taxResult['amount'];
+
             $discount = 0;
+
+            // Validate coupon early to include discount in initial total
+            $coupon = null;
+            if ($request->filled('coupon_code')) {
+                $couponService = app(CouponService::class);
+                $coupon = $couponService->validate($request->coupon_code, $user, $subtotal);
+                $discount = $couponService->calculateDiscount($coupon, $subtotal);
+            }
+
             $total = $subtotal + $shippingCost + $tax - $discount;
 
             $order = Order::create([
@@ -136,25 +164,9 @@ class CheckoutController extends Controller
                 ]);
             }
 
-            // Calculate tax
-            $taxService = app(TaxService::class);
-            $taxResult = $taxService->calculate($subtotal, $shippingAddress->state);
-            $tax = $taxResult['amount'];
-
-            // Apply coupon if provided
-            if ($request->filled('coupon_code')) {
-                $couponService = app(CouponService::class);
-                $coupon = $couponService->validate($request->coupon_code, $user, $subtotal);
-                $discount = $couponService->calculateDiscount($coupon, $subtotal);
-                $couponService->apply($coupon, $order, $user);
+            if ($coupon) {
+                app(CouponService::class)->apply($coupon, $order, $user);
             }
-
-            // Update order with calculated tax and discount
-            $order->update([
-                'tax'      => $tax,
-                'discount' => $discount,
-                'total'    => $subtotal + $shippingCost + $tax - $discount,
-            ]);
 
             // Create commissions exactly once (idempotent)
             app(CommissionService::class)->createCommissions($order);
@@ -250,7 +262,7 @@ class CheckoutController extends Controller
             'metadata' => [
                 'order_id' => (string) $order->id,
             ],
-            'success_url' => route('checkout.success', $order) . '?session_id={CHECKOUT_SESSION_ID}',
+            'success_url' => route('checkout.success', $order).'?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => route('checkout.cancel', $order),
         ]);
 
@@ -283,7 +295,9 @@ class CheckoutController extends Controller
                     && (int) round($session->amount_total / 100 * 100) === (int) round($order->total * 100)) {
                     DB::transaction(function () use ($order, $session) {
                         $locked = Order::where('id', $order->id)->where('payment_status', '!=', 'paid')->lockForUpdate()->first();
-                        if (!$locked) return;
+                        if (! $locked) {
+                            return;
+                        }
                         $locked->update([
                             'status' => 'confirmed',
                             'payment_status' => 'paid',
@@ -297,7 +311,7 @@ class CheckoutController extends Controller
                     });
                 }
             } catch (\Exception $e) {
-                Log::error('Stripe verification failed: ' . $e->getMessage());
+                Log::error('Stripe verification failed: '.$e->getMessage());
             }
         }
 
@@ -324,7 +338,7 @@ class CheckoutController extends Controller
         return redirect()->route('cart.index')->with('error', 'Payment was cancelled. Your cart items are still saved.');
     }
 
-    public function webhook(Request $request): \Illuminate\Http\Response
+    public function webhook(Request $request): Response
     {
         StripeGateway::setApiKey(config('services.stripe.secret'));
 
@@ -335,7 +349,8 @@ class CheckoutController extends Controller
         try {
             $event = Webhook::constructEvent($payload, $sigHeader, $endpointSecret);
         } catch (\Exception $e) {
-            Log::error('Stripe webhook verification failed: ' . $e->getMessage());
+            Log::error('Stripe webhook verification failed: '.$e->getMessage());
+
             return response('Webhook signature verification failed', 400);
         }
 
@@ -391,16 +406,16 @@ class CheckoutController extends Controller
         }
     }
 
-    private function decrementInventory(\App\Models\Cart $cart): void
+    private function decrementInventory(Cart $cart): void
     {
         foreach ($cart->items as $item) {
             $inventory = $item->product?->inventory;
-            if (!$inventory) {
+            if (! $inventory) {
                 continue;
             }
 
-            $inventory = \App\Models\Inventory::whereKey($inventory->id)->lockForUpdate()->first();
-            if (!$inventory) {
+            $inventory = Inventory::whereKey($inventory->id)->lockForUpdate()->first();
+            if (! $inventory) {
                 continue;
             }
 

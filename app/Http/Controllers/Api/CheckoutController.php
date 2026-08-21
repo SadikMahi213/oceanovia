@@ -7,6 +7,8 @@ use App\Models\Address;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\ShippingService;
+use App\Services\TaxService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,21 +27,26 @@ class CheckoutController extends Controller
         $billingAddress = Address::where('user_id', auth()->id())->findOrFail($validated['billing_address_id']);
 
         $cart = Cart::where('user_id', auth()->id())
-            ->with('items.product')
+            ->with('items.product.inventory')
             ->first();
 
-        if (!$cart || $cart->items->isEmpty()) {
+        if (! $cart || $cart->items->isEmpty()) {
             return response()->json(['message' => 'Cart is empty.'], 422);
         }
 
         $subtotal = $cart->total;
-        $total = $subtotal;
+        $shippingService = app(ShippingService::class);
+        $shippingCost = $shippingService->calculate($cart, $shippingAddress)['total'];
+        $taxService = app(TaxService::class);
+        $taxResult = $taxService->calculate($subtotal, $shippingAddress->state);
+        $tax = $taxResult['amount'];
+        $total = $subtotal + $shippingCost + $tax;
 
         $order = Order::create([
             'user_id' => auth()->id(),
             'subtotal' => $subtotal,
-            'shipping_cost' => 0,
-            'tax' => 0,
+            'shipping_cost' => $shippingCost,
+            'tax' => $tax,
             'discount' => 0,
             'total' => $total,
             'status' => 'pending',
@@ -68,7 +75,7 @@ class CheckoutController extends Controller
 
         $order->load('items');
 
-        $paymentUrl = route('checkout.index') . '?order=' . $order->id;
+        $paymentUrl = route('checkout.index').'?order='.$order->id;
 
         return response()->json([
             'message' => 'Order created successfully.',
