@@ -65,9 +65,6 @@
 {{-- Header / Navigation --}}
 @include('layouts.navigation')
 
-{{-- Site Announcements --}}
-<x-announcements />
-
 {{-- Main Content --}}
 <main>
     @if(session('success'))
