@@ -25,18 +25,20 @@ class ShippingMethodController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'                    => 'required|string|max:255',
-            'code'                    => 'required|string|max:50|unique:shipping_methods,code',
-            'description'             => 'nullable|string|max:1000',
-            'base_rate'               => 'required|numeric|min:0',
-            'rate_per_kg'             => 'required|numeric|min:0',
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:shipping_methods,code',
+            'description' => 'nullable|string|max:1000',
+            'base_rate' => 'required|numeric|min:0',
+            'rate_per_kg' => 'required|numeric|min:0',
             'free_shipping_threshold' => 'nullable|numeric|min:0',
-            'estimated_days_min'      => 'nullable|integer|min:0',
-            'estimated_days_max'      => 'nullable|integer|min:0',
-            'zones'                   => 'nullable|json',
-            'is_active'               => 'boolean',
-            'sort_order'              => 'nullable|integer|min:0',
+            'estimated_days_min' => 'nullable|integer|min:0',
+            'estimated_days_max' => 'nullable|integer|min:0',
+            'zones' => 'nullable|json',
+            'is_active' => 'sometimes|boolean',
+            'sort_order' => 'nullable|integer|min:0',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         if (isset($validated['zones']) && is_string($validated['zones'])) {
             $validated['zones'] = json_decode($validated['zones'], true);
@@ -56,18 +58,20 @@ class ShippingMethodController extends Controller
     public function update(Request $request, ShippingMethod $shippingMethod): RedirectResponse
     {
         $validated = $request->validate([
-            'name'                    => 'required|string|max:255',
-            'code'                    => 'required|string|max:50|unique:shipping_methods,code,' . $shippingMethod->id,
-            'description'             => 'nullable|string|max:1000',
-            'base_rate'               => 'required|numeric|min:0',
-            'rate_per_kg'             => 'required|numeric|min:0',
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:50|unique:shipping_methods,code,'.$shippingMethod->id,
+            'description' => 'nullable|string|max:1000',
+            'base_rate' => 'required|numeric|min:0',
+            'rate_per_kg' => 'required|numeric|min:0',
             'free_shipping_threshold' => 'nullable|numeric|min:0',
-            'estimated_days_min'      => 'nullable|integer|min:0',
-            'estimated_days_max'      => 'nullable|integer|min:0',
-            'zones'                   => 'nullable|json',
-            'is_active'               => 'boolean',
-            'sort_order'              => 'nullable|integer|min:0',
+            'estimated_days_min' => 'nullable|integer|min:0',
+            'estimated_days_max' => 'nullable|integer|min:0',
+            'zones' => 'nullable|json',
+            'is_active' => 'sometimes|boolean',
+            'sort_order' => 'nullable|integer|min:0',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         if (isset($validated['zones']) && is_string($validated['zones'])) {
             $validated['zones'] = json_decode($validated['zones'], true);

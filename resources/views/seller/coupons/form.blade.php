@@ -74,6 +74,7 @@
                                     </div>
 
                                     <div class="flex items-center gap-3">
+                                        <input type="hidden" name="is_active" value="0">
                                         <input id="is_active" name="is_active" type="checkbox" value="1" {{ old('is_active', $coupon->is_active ?? true) ? 'checked' : '' }} class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-market-600 focus:ring-market-500">
                                         <x-input-label for="is_active" value="Active" class="!mb-0" />
                                         <x-input-error :messages="$errors->get('is_active')" class="mt-1" />

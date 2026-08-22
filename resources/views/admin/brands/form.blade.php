@@ -88,6 +88,7 @@ $title = $edit ? 'Edit Brand' : 'Add Brand';
                                     <x-input-error :messages="$errors->get('sort_order')" class="mt-1" />
                                 </div>
                                 <div class="flex items-center gap-3">
+                                    <input type="hidden" name="is_active" value="0">
                                     <input type="checkbox" id="is_active" name="is_active" value="1" {{ old('is_active', $brand?->is_active ?? true) ? 'checked' : '' }}
                                         class="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-market-600 shadow-sm focus:ring-market-500">
                                     <x-input-label for="is_active" value="Active" />

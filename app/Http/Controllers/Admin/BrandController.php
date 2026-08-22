@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class BrandController extends Controller
@@ -32,13 +31,13 @@ class BrandController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
-            'slug'        => 'required|string|max:255|unique:brands,slug',
-            'logo'        => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|max:255|unique:brands,slug',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'description' => 'nullable|string|max:1000',
-            'website'     => 'nullable|url|max:255',
-            'sort_order'  => 'nullable|integer|min:0',
-            'is_active'   => 'sometimes|boolean',
+            'website' => 'nullable|url|max:255',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active') ?? 0;
@@ -61,13 +60,13 @@ class BrandController extends Controller
     public function update(Request $request, Brand $brand): RedirectResponse
     {
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
-            'slug'        => 'required|string|max:255|unique:brands,slug,' . $brand->id,
-            'logo'        => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|max:255|unique:brands,slug,'.$brand->id,
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'description' => 'nullable|string|max:1000',
-            'website'     => 'nullable|url|max:255',
-            'sort_order'  => 'nullable|integer|min:0',
-            'is_active'   => 'sometimes|boolean',
+            'website' => 'nullable|url|max:255',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active') ?? $brand->is_active;

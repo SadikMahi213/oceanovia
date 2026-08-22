@@ -141,6 +141,7 @@ $title = $edit ? 'Edit Banner' : 'Add Banner';
                         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
                             <div class="p-5">
                                 <div class="flex items-center gap-3">
+                                    <input type="hidden" name="status" value="0">
                                     <input type="checkbox" id="status" name="status" value="1" {{ old('status', $banner?->status ?? true) ? 'checked' : '' }}
                                         class="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-market-600 shadow-sm focus:ring-market-500">
                                     <x-input-label for="status" value="Active" />

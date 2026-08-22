@@ -88,6 +88,7 @@
                             </div>
                             <div class="flex items-center gap-3 mb-4">
                                 <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                    <input type="hidden" name="is_active" value="0">
                                     <input type="checkbox" name="is_active" value="1" checked
                                         class="rounded border-gray-300 dark:border-gray-600 text-market-600 focus:ring-market-500">
                                     Active
@@ -236,6 +237,7 @@
                                                     </div>
                                                     <div class="flex items-center gap-3 mb-4">
                                                         <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                                            <input type="hidden" name="is_active" value="0">
                                                             <input type="checkbox" name="is_active" value="1" {{ $rate->is_active ? 'checked' : '' }}
                                                                 class="rounded border-gray-300 dark:border-gray-600 text-market-600 focus:ring-market-500">
                                                             Active

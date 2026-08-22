@@ -25,13 +25,15 @@ class AnnouncementController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'title'      => 'required|string|max:255',
-            'content'    => 'required|string',
-            'type'       => 'required|in:info,warning,success,alert',
-            'is_active'  => 'boolean',
-            'starts_at'  => 'nullable|date',
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'type' => 'required|in:info,warning,success,alert',
+            'is_active' => 'sometimes|boolean',
+            'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date|after:starts_at',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         Announcement::create($validated);
 
@@ -47,13 +49,15 @@ class AnnouncementController extends Controller
     public function update(Request $request, Announcement $announcement): RedirectResponse
     {
         $validated = $request->validate([
-            'title'      => 'required|string|max:255',
-            'content'    => 'required|string',
-            'type'       => 'required|in:info,warning,success,alert',
-            'is_active'  => 'boolean',
-            'starts_at'  => 'nullable|date',
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'type' => 'required|in:info,warning,success,alert',
+            'is_active' => 'sometimes|boolean',
+            'starts_at' => 'nullable|date',
             'expires_at' => 'nullable|date|after:starts_at',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         $announcement->update($validated);
 

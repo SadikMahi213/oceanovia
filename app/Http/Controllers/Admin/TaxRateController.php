@@ -34,10 +34,11 @@ class TaxRateController extends Controller
             'state_code' => ['required', 'string', 'size:2', Rule::unique('tax_rates', 'state_code')->whereNull('deleted_at')],
             'rate' => 'required|numeric|min:0|max:100',
             'name' => 'required|string|max:255',
-            'is_active' => 'boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $validated['state_code'] = strtoupper(trim($validated['state_code']));
+        $validated['is_active'] = $request->boolean('is_active');
 
         TaxRate::create($validated);
 
@@ -83,10 +84,11 @@ class TaxRateController extends Controller
             'state_code' => ['required', 'string', 'size:2', Rule::unique('tax_rates', 'state_code')->ignore($taxRate->id)->whereNull('deleted_at')],
             'rate' => 'required|numeric|min:0|max:100',
             'name' => 'required|string|max:255',
-            'is_active' => 'boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $validated['state_code'] = strtoupper(trim($validated['state_code']));
+        $validated['is_active'] = $request->boolean('is_active');
 
         $taxRate->update($validated);
 

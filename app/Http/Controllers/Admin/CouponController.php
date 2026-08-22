@@ -25,18 +25,20 @@ class CouponController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'code'              => 'required|string|max:50|unique:coupons,code',
-            'type'              => 'required|in:percentage,fixed',
-            'value'             => 'required|numeric|min:0',
-            'min_order_amount'  => 'nullable|numeric|min:0',
-            'max_discount'      => 'nullable|numeric|min:0',
-            'usage_limit'       => 'nullable|integer|min:1',
-            'per_user_limit'    => 'nullable|integer|min:1',
-            'starts_at'         => 'nullable|date',
-            'expires_at'        => 'nullable|date|after:starts_at',
-            'is_active'         => 'boolean',
-            'description'       => 'nullable|string|max:1000',
+            'code' => 'required|string|max:50|unique:coupons,code',
+            'type' => 'required|in:percentage,fixed',
+            'value' => 'required|numeric|min:0',
+            'min_order_amount' => 'nullable|numeric|min:0',
+            'max_discount' => 'nullable|numeric|min:0',
+            'usage_limit' => 'nullable|integer|min:1',
+            'per_user_limit' => 'nullable|integer|min:1',
+            'starts_at' => 'nullable|date',
+            'expires_at' => 'nullable|date|after:starts_at',
+            'is_active' => 'sometimes|boolean',
+            'description' => 'nullable|string|max:1000',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         Coupon::create($validated);
 
@@ -52,18 +54,20 @@ class CouponController extends Controller
     public function update(Request $request, Coupon $coupon): RedirectResponse
     {
         $validated = $request->validate([
-            'code'              => 'required|string|max:50|unique:coupons,code,' . $coupon->id,
-            'type'              => 'required|in:percentage,fixed',
-            'value'             => 'required|numeric|min:0',
-            'min_order_amount'  => 'nullable|numeric|min:0',
-            'max_discount'      => 'nullable|numeric|min:0',
-            'usage_limit'       => 'nullable|integer|min:1',
-            'per_user_limit'    => 'nullable|integer|min:1',
-            'starts_at'         => 'nullable|date',
-            'expires_at'        => 'nullable|date|after:starts_at',
-            'is_active'         => 'boolean',
-            'description'       => 'nullable|string|max:1000',
+            'code' => 'required|string|max:50|unique:coupons,code,'.$coupon->id,
+            'type' => 'required|in:percentage,fixed',
+            'value' => 'required|numeric|min:0',
+            'min_order_amount' => 'nullable|numeric|min:0',
+            'max_discount' => 'nullable|numeric|min:0',
+            'usage_limit' => 'nullable|integer|min:1',
+            'per_user_limit' => 'nullable|integer|min:1',
+            'starts_at' => 'nullable|date',
+            'expires_at' => 'nullable|date|after:starts_at',
+            'is_active' => 'sometimes|boolean',
+            'description' => 'nullable|string|max:1000',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         $coupon->update($validated);
 

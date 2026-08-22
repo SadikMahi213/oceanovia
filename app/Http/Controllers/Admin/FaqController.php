@@ -35,12 +35,14 @@ class FaqController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'question'   => 'required|string|max:1000',
-            'answer'     => 'required|string',
-            'category'   => 'required|string|in:general,shipping,returns,payments,account,other',
+            'question' => 'required|string|max:1000',
+            'answer' => 'required|string',
+            'category' => 'required|string|in:general,shipping,returns,payments,account,other',
             'sort_order' => 'nullable|integer|min:0',
-            'is_active'  => 'boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         Faq::create($validated);
 
@@ -58,12 +60,14 @@ class FaqController extends Controller
     public function update(Request $request, Faq $faq): RedirectResponse
     {
         $validated = $request->validate([
-            'question'   => 'required|string|max:1000',
-            'answer'     => 'required|string',
-            'category'   => 'required|string|in:general,shipping,returns,payments,account,other',
+            'question' => 'required|string|max:1000',
+            'answer' => 'required|string',
+            'category' => 'required|string|in:general,shipping,returns,payments,account,other',
             'sort_order' => 'nullable|integer|min:0',
-            'is_active'  => 'boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
 
         $faq->update($validated);
 

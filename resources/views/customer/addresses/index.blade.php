@@ -87,6 +87,7 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
+                                    <input type="hidden" name="is_default" value="0">
                                     <input type="checkbox" id="is_default" name="is_default" value="1"
                                         class="rounded border-gray-300 dark:border-gray-600 text-market-600 shadow-sm focus:ring-market-500">
                                     <x-input-label for="is_default" value="Set as default address" />
@@ -202,6 +203,7 @@
                                                 </div>
                                             </div>
                                             <div class="flex items-center gap-2">
+                                                <input type="hidden" name="is_default" value="0">
                                                 <input type="checkbox" id="is_default_{{ $address->id }}" name="is_default" value="1" {{ $address->is_default ? 'checked' : '' }}
                                                     class="rounded border-gray-300 dark:border-gray-600 text-market-600 shadow-sm focus:ring-market-500">
                                                 <x-input-label for="is_default_{{ $address->id }}" value="Set as default address" />

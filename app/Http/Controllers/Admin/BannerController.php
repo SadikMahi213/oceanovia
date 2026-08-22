@@ -25,18 +25,20 @@ class BannerController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'title'        => 'required|string|max:255',
-            'subtitle'     => 'nullable|string|max:500',
-            'link'         => 'nullable|string|max:255',
-            'image'        => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'title' => 'required|string|max:255',
+            'subtitle' => 'nullable|string|max:500',
+            'link' => 'nullable|string|max:255',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'mobile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'btn_text'     => 'nullable|string|max:100',
-            'text_color'   => 'nullable|string|max:20',
-            'bg_color'     => 'nullable|string|max:20',
-            'sort_order'   => 'nullable|integer|min:0',
-            'section'      => 'required|in:hero,promo,featured',
-            'status'       => 'boolean',
+            'btn_text' => 'nullable|string|max:100',
+            'text_color' => 'nullable|string|max:20',
+            'bg_color' => 'nullable|string|max:20',
+            'sort_order' => 'nullable|integer|min:0',
+            'section' => 'required|in:hero,promo,featured',
+            'status' => 'sometimes|boolean',
         ]);
+
+        $validated['status'] = $request->boolean('status');
 
         $validated['image'] = $request->file('image')->store('banners', 'public');
 
@@ -58,16 +60,18 @@ class BannerController extends Controller
     public function update(Request $request, Banner $banner): RedirectResponse
     {
         $validated = $request->validate([
-            'title'        => 'required|string|max:255',
-            'subtitle'     => 'nullable|string|max:500',
-            'link'         => 'nullable|string|max:255',
-            'btn_text'     => 'nullable|string|max:100',
-            'text_color'   => 'nullable|string|max:20',
-            'bg_color'     => 'nullable|string|max:20',
-            'sort_order'   => 'nullable|integer|min:0',
-            'section'      => 'required|in:hero,promo,featured',
-            'status'       => 'boolean',
+            'title' => 'required|string|max:255',
+            'subtitle' => 'nullable|string|max:500',
+            'link' => 'nullable|string|max:255',
+            'btn_text' => 'nullable|string|max:100',
+            'text_color' => 'nullable|string|max:20',
+            'bg_color' => 'nullable|string|max:20',
+            'sort_order' => 'nullable|integer|min:0',
+            'section' => 'required|in:hero,promo,featured',
+            'status' => 'sometimes|boolean',
         ]);
+
+        $validated['status'] = $request->boolean('status');
 
         if ($request->hasFile('image')) {
             $request->validate(['image' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048']);
