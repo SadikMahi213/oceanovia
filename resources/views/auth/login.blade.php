@@ -19,7 +19,7 @@
         </div>
 
         <!-- Password -->
-        <div>
+        <div x-data="{ showPassword: false }">
             <div class="flex items-center justify-between">
                 <x-input-label for="password" :value="__('Password')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
                 @if (Route::has('password.request'))
@@ -28,11 +28,19 @@
                     </a>
                 @endif
             </div>
-            <x-text-input id="password" class="block mt-1.5 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 focus:ring-2 focus:ring-market-500/10 dark:focus:ring-market-400/10 outline-none transition-all"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password"
-                            placeholder="••••••••" />
+            <div class="relative mt-1.5">
+                <x-text-input id="password" class="block w-full px-4 py-2.5 pr-11 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 focus:ring-2 focus:ring-market-500/10 dark:focus:ring-market-400/10 outline-none transition-all"
+                                type="password"
+                                x-bind:type="showPassword ? 'text' : 'password'"
+                                name="password"
+                                required autocomplete="current-password"
+                                placeholder="••••••••" />
+                <button type="button" @click="showPassword = !showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :title="showPassword ? 'Hide password' : 'Show password'" tabindex="-1"
+                        class="absolute inset-y-0 right-0 flex items-center pr-3.5 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors">
+                    <svg x-show="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S3.732 16.057 2.458 12z"/></svg>
+                    <svg x-show="showPassword" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 012.93-4.292M6.455 6.455A9.97 9.97 0 0112 5c4.478 0 8.268 2.943 9.542 7a9.97 9.97 0 01-4.743 5.53M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18"/></svg>
+                </button>
+            </div>
             <x-input-error :messages="$errors->get('password')" class="mt-1.5" />
         </div>
 

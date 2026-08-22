@@ -14,9 +14,15 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): View
+    public function create(): \Illuminate\Http\Response
     {
-        return view('auth.login');
+        $response = response()->view('auth.login');
+        // Prevent caching of login page to avoid stale CSRF tokens (419)
+        $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        $response->headers->set('Pragma', 'no-cache');
+        $response->headers->set('Expires', '0');
+
+        return $response;
     }
 
     /**
