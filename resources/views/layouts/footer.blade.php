@@ -87,8 +87,8 @@
     {{-- Bottom Bar --}}
     <div class="border-t border-gray-800">
         <div class="max-w-7xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p class="text-sm text-gray-500">&copy; {{ date('Y') }} MulitVendor USA. All rights reserved.</p>
-            <div class="flex items-center gap-4 text-sm text-gray-500">
+            <p class="text-sm text-gray-400">&copy; {{ date('Y') }} MulitVendor USA. All rights reserved.</p>
+            <div class="flex items-center gap-4 text-sm text-gray-400">
                 <span>🇺🇸 USA Marketplace</span>
                 <span class="hidden sm:inline">·</span>
                 <span>Made with ❤️ for American Sellers</span>

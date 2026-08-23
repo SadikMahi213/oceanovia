@@ -47,7 +47,7 @@
                                     <a href="{{ route('products.index', array_merge(request()->except('category', 'page'), ['category' => $category->slug])) }}" class="flex items-center justify-between text-sm {{ $selectedCategory === $category->slug ? 'text-market-600 dark:text-market-400 font-medium' : 'text-gray-600 dark:text-gray-400 hover:text-market-600 dark:hover:text-market-400' }} transition-colors">
                                         <span>{{ $category->name }}</span>
                                         @if(isset($category->products_count))
-                                            <span class="text-xs text-gray-400">({{ $category->products_count }})</span>
+                                            <span class="text-xs text-gray-500">({{ $category->products_count }})</span>
                                         @endif
                                     </a>
                                 @endforeach

@@ -2,7 +2,7 @@
 <div class="group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
     {{-- Image --}}
     <div class="relative aspect-square bg-gray-50 dark:bg-gray-700 overflow-hidden">
-        <a href="{{ route('products.show', $product->slug) }}">
+        <a href="{{ route('products.show', $product->slug) }}" aria-label="{{ $product->name }}">
             @if($product->thumbnail)
                 <img src="{{ $product->thumbnail }}" alt="{{ $product->name }}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
             @else
@@ -15,15 +15,16 @@
         {{-- Badges --}}
         <div class="absolute top-3 left-3 flex flex-col gap-1">
             @if($product->discount_percent)
-                <span class="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-lg">-{{ $product->discount_percent }}%</span>
+                <span class="px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded-lg">-{{ $product->discount_percent }}%</span>
             @endif
             @if($product->is_featured)
-                <span class="px-2 py-0.5 bg-market-500 text-white text-xs font-bold rounded-lg">Featured</span>
+                <span class="px-2 py-0.5 bg-market-600 text-white text-xs font-bold rounded-lg">Featured</span>
             @endif
         </div>
 
         {{-- Wishlist Button --}}
         <button @click="$store.wishlist.toggle({{ $product->id }}); $store.toast.success($store.wishlist.has({{ $product->id }}) ? 'Added to wishlist' : 'Removed from wishlist')"
+                :aria-label="$store.wishlist.has({{ $product->id }}) ? 'Remove from wishlist' : 'Add to wishlist'"
                 class="absolute top-3 right-3 w-9 h-9 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white dark:hover:bg-gray-800 transition-all shadow-sm"
                 :class="{ 'text-red-500': $store.wishlist.has({{ $product->id }}), 'text-gray-400': !$store.wishlist.has({{ $product->id }}) }">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
@@ -33,7 +34,7 @@
     {{-- Details --}}
     <div class="p-4">
         {{-- Seller --}}
-        <p class="text-xs text-gray-400 dark:text-gray-500 mb-1">
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">
             @if($product->seller)
                 by <span class="text-market-600 dark:text-market-400">{{ $product->seller->name }}</span>
             @endif
@@ -51,23 +52,23 @@
             <div class="flex items-center gap-1.5 mb-2">
                 <div class="flex items-center">
                     @for($i = 1; $i <= 5; $i++)
-                        <svg class="w-3.5 h-3.5 {{ $i <= round($product->rating_average) ? 'text-yellow-400' : 'text-gray-200 dark:text-gray-600' }}" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-3.5 h-3.5 {{ $i <= round($product->rating_average) ? 'text-yellow-400' : 'text-gray-500 dark:text-gray-400' }}" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                         </svg>
                     @endfor
                 </div>
-                <span class="text-xs text-gray-400 dark:text-gray-500">({{ $product->reviews_count }})</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">({{ $product->reviews_count }})</span>
             </div>
         @else
             <div class="flex items-center gap-1.5 mb-2">
                 <div class="flex items-center">
                     @for($i = 1; $i <= 5; $i++)
-                        <svg class="w-3.5 h-3.5 text-gray-200 dark:text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                         </svg>
                     @endfor
                 </div>
-                <span class="text-xs text-gray-400 dark:text-gray-500">No reviews</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">No reviews</span>
             </div>
         @endif
 
@@ -75,7 +76,7 @@
         <div class="flex items-center gap-2 mb-3">
             <span class="text-lg font-bold text-gray-900 dark:text-white">${{ number_format($product->price, 2) }}</span>
             @if($product->compare_price && $product->compare_price > $product->price)
-                <span class="text-sm text-gray-400 line-through">${{ number_format($product->compare_price, 2) }}</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400 line-through">${{ number_format($product->compare_price, 2) }}</span>
             @endif
         </div>
 

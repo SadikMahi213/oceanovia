@@ -118,7 +118,7 @@
                         </div>
                     @endif
                     <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ $cat->name }}</span>
-                    <span class="text-xs text-gray-400 dark:text-gray-500 mt-1">{{ $cat->products_count ?? 0 }} items</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ $cat->products_count ?? 0 }} items</span>
                 </a>
                 @empty
                     @for($i = 0; $i < 6; $i++)

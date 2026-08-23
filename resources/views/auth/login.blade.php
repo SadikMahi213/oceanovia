@@ -69,11 +69,11 @@
                 <div class="w-full border-t border-gray-200 dark:border-gray-800"></div>
             </div>
             <div class="relative flex justify-center text-xs uppercase">
-                <span class="bg-white dark:bg-gray-900 px-3 text-gray-400 dark:text-gray-500">Secure checkout via MulitVendor</span>
+                <span class="bg-white dark:bg-gray-900 px-3 text-gray-500 dark:text-gray-400">Secure checkout via MulitVendor</span>
             </div>
         </div>
 
-        <p class="text-xs text-center text-gray-400 dark:text-gray-500">
+        <p class="text-xs text-center text-gray-500 dark:text-gray-400">
             By continuing, you agree to our <a href="#" class="underline hover:text-gray-600 dark:hover:text-gray-300">Terms of Service</a> and <a href="#" class="underline hover:text-gray-600 dark:hover:text-gray-300">Privacy Policy</a>.
         </p>
     </form>
