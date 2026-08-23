@@ -86,4 +86,25 @@ class CartTest extends TestCase
             'quantity' => 3,
         ]);
     }
+
+    public function test_user_cannot_view_other_users_order(): void
+    {
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        $orderB = \App\Models\Order::create([
+            'user_id' => $userB->id,
+            'subtotal' => 100.00,
+            'total' => 100.00,
+            'status' => 'pending',
+        ]);
+
+        // Web guard: GET /orders/{id} should 404 for UserA
+        $response = $this->actingAs($userA)->get(route('orders.show', $orderB->id));
+        $response->assertStatus(404);
+
+        // API guard: GET /api/orders/{id} should 404 for UserA
+        $apiResponse = $this->actingAs($userA)->getJson('/api/orders/' . $orderB->id);
+        $apiResponse->assertStatus(404);
+    }
 }
