@@ -88,10 +88,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified', 'role:ad
     Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
 
     // Products
-    Route::get('products', [App\Http\Controllers\Admin\ProductController::class, 'index'])->name('products.index');
+    Route::resource('products', App\Http\Controllers\Admin\ProductController::class)->except('show');
 
     // Categories
-    Route::get('categories', [App\Http\Controllers\Admin\CategoryController::class, 'index'])->name('categories.index');
+    Route::resource('categories', App\Http\Controllers\Admin\CategoryController::class)->except('show');
 
     // Users
     Route::get('users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');

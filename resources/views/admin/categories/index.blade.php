@@ -10,7 +10,12 @@
                             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Categories</h1>
                             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage product categories</p>
                         </div>
-                        <form method="GET" class="flex items-center gap-2">
+                        <div class="flex items-center gap-3">
+                            <a href="{{ route('admin.categories.create') }}" class="inline-flex items-center gap-2 px-4 py-2.5 bg-market-600 hover:bg-market-700 text-white text-sm font-medium rounded-xl transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                Add Category
+                            </a>
+                            <form method="GET" class="flex items-center gap-2">
                             <select name="parent" onchange="this.form.submit()" class="rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:border-market-500 focus:ring-market-500">
                                 <option value="">All Levels</option>
                                 <option value="none" {{ request('parent') === 'none' ? 'selected' : '' }}>Parent Only</option>
@@ -26,6 +31,7 @@
                             <input type="text" name="search" placeholder="Search categories..." value="{{ request('search') }}" class="rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:border-market-500 focus:ring-market-500 w-44">
                             <button type="submit" hidden></button>
                         </form>
+                        </div>
                     </div>
                     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
                         <div class="overflow-x-auto">
@@ -44,6 +50,7 @@
                                         </th>
                                         <th class="px-5 py-3 text-center">Status</th>
                                         <th class="px-5 py-3 text-right">Created</th>
+                                        <th class="px-5 py-3 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -73,9 +80,25 @@
                                                 <x-inline-edit model="Category" :id="$cat->id" field="status" :value="$cat->status" type="select" :options="[1 => 'Active', 0 => 'Inactive']" />
                                             </td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400 text-right">{{ $cat->created_at->format('M d, Y') }}</td>
+                                            <td class="px-5 py-4 text-right">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <a href="{{ route('admin.categories.edit', $cat) }}" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                                        Edit
+                                                    </a>
+                                                    <form method="POST" action="{{ route('admin.categories.destroy', $cat) }}" onsubmit="return confirm('Delete this category?')" class="inline">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors">
+                                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                            Delete
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
                                         </tr>
                                     @empty
-                                        <tr><td colspan="6" class="px-5 py-12 text-center text-sm text-gray-500">No categories found.</td></tr>
+                                        <tr><td colspan="7" class="px-5 py-12 text-center text-sm text-gray-500">No categories found.</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>
