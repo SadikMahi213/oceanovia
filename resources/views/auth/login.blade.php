@@ -1,12 +1,31 @@
+@php $role = request('role', request()->query('role')) ?? old('role'); $role = in_array($role, ['customer','seller','supplier']) ? $role : null; $roleLabel = $role ? ucfirst($role) : null; @endphp
 <x-guest-layout>
-    @section('auth_title', 'Welcome back')
-    @section('auth_subtitle', 'Sign in to your MulitVendor account')
+    @section('auth_title', $roleLabel ? $roleLabel.' Login' : 'Welcome back')
+    @section('auth_subtitle', $roleLabel ? 'Sign in as '.$roleLabel.' to continue' : 'Sign in to your MulitVendor account')
     @section('auth_footer')
-        <span>Don't have an account? <a href="{{ route('register') }}" class="font-medium text-market-600 hover:text-market-700 dark:text-market-400 dark:hover:text-market-300 transition-colors">Create one</a></span>
+        <span>Don't have an account? <a href="{{ route('register', $role ? ['role'=>$role] : []) }}" class="font-medium text-market-600 hover:text-market-700 dark:text-market-400 dark:hover:text-market-300 transition-colors">Create one{{ $roleLabel ? ' as '.$roleLabel : '' }}</a></span>
     @endsection
 
     {{-- Session Status --}}
     <x-auth-session-status class="mb-4" :status="session('status')" />
+
+    {{-- Role Switcher --}}
+    <div class="flex items-center justify-center gap-1.5 mb-5 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+        @foreach(['customer'=>'Customer','seller'=>'Seller','supplier'=>'Supplier'] as $r => $label)
+            <a href="{{ route('login', ['role'=>$r]) }}" class="flex-1 text-center px-3 py-2 rounded-lg text-sm font-medium transition-all {{ $role===$r ? 'bg-white dark:bg-gray-700 text-market-600 dark:text-market-400 shadow-sm border border-gray-200 dark:border-gray-600' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white' }}">{{ $label }}</a>
+        @endforeach
+    </div>
+    @if($role)
+        <div class="mb-4 flex items-center gap-2 px-3 py-2.5 bg-market-50 dark:bg-market-900/20 border border-market-200 dark:border-market-800 rounded-xl">
+            <div class="w-8 h-8 bg-market-600 rounded-lg flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            </div>
+            <div>
+                <p class="text-sm font-semibold text-market-700 dark:text-market-300">{{ $roleLabel }} Login</p>
+                <p class="text-xs text-market-600 dark:text-market-400">You are signing in as {{ $roleLabel }}</p>
+            </div>
+        </div>
+    @endif
 
     <form method="POST" action="{{ route('login') }}" class="space-y-5">
         @csrf

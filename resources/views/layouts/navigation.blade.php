@@ -9,8 +9,8 @@
                 @auth
                     <span class="text-gray-700 dark:text-gray-300">Welcome, {{ Auth::user()->name }}</span>
                 @else
-                    <a href="{{ route('login') }}" class="hover:text-market-600 dark:hover:text-market-400 transition-colors">Sign In</a>
-                    <a href="{{ route('register') }}" class="hover:text-market-600 dark:hover:text-market-400 transition-colors">Register</a>
+                    <a href="{{ route('auth.choose') }}" class="hover:text-market-600 dark:hover:text-market-400 transition-colors">Sign In</a>
+                    <a href="{{ route('auth.choose') }}" class="hover:text-market-600 dark:hover:text-market-400 transition-colors">Register</a>
                 @endauth
             </div>
         </div>
@@ -139,7 +139,7 @@
                         </div>
                     </div>
                 @else
-                    <a href="{{ route('login') }}" class="hidden sm:inline-flex items-center px-4 py-2 bg-market-600 hover:bg-market-700 text-white text-sm font-medium rounded-xl transition-colors ml-2">
+                    <a href="{{ route('auth.choose') }}" class="hidden sm:inline-flex items-center px-4 py-2 bg-market-600 hover:bg-market-700 text-white text-sm font-medium rounded-xl transition-colors ml-2">
                         Sign In
                     </a>
                 @endauth

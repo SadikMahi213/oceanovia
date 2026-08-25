@@ -28,6 +28,9 @@ Route::get('/health', function () {
 // ─── Sitemap ────────────────────────────────────────────────────────────
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
 
+// ─── Auth Role Choice ───────────────────────────────────────────────────
+Route::view('/auth/choose', 'auth.choose')->name('auth.choose');
+
 // ─── Homepage ───────────────────────────────────────────────────────────
 Route::get('/', [ProductController::class, 'home'])->name('home');
 

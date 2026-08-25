@@ -55,9 +55,9 @@
             <div>
                 <h4 class="text-sm font-semibold text-white uppercase tracking-wider mb-4">Sell</h4>
                 <ul class="space-y-2.5">
-                    <li><a href="{{ route('register') }}" class="text-sm text-gray-400 hover:text-white transition-colors">Start Selling</a></li>
+                    <li><a href="{{ route('register', ['role'=>'seller']) }}" class="text-sm text-gray-400 hover:text-white transition-colors">Start Selling</a></li>
                     <li><a href="{{ route('seller.dashboard') }}" class="text-sm text-gray-400 hover:text-white transition-colors">Seller Dashboard</a></li>
-                    <li><a href="{{ route('register') }}" class="text-sm text-gray-400 hover:text-white transition-colors">Become a Supplier</a></li>
+                    <li><a href="{{ route('register', ['role'=>'supplier']) }}" class="text-sm text-gray-400 hover:text-white transition-colors">Become a Supplier</a></li>
                     <li><a href="{{ route('faq') }}" class="text-sm text-gray-400 hover:text-white transition-colors">Seller Resources</a></li>
                 </ul>
             </div>
