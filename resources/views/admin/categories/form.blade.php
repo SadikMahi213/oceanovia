@@ -96,13 +96,13 @@ $title = $edit ? 'Edit Category' : 'Add Category';
                                         <label class="flex items-center gap-2 cursor-pointer">
                                             <input type="hidden" name="is_featured" value="0">
                                             <input type="checkbox" id="is_featured" name="is_featured" value="1" {{ old('is_featured', $category?->is_featured ?? false) ? 'checked' : '' }}
-                                                class="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-market-600 shadow-sm focus:ring-market-500 focus:ring-2 focus:ring-offset-0">
+                                                class="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-market-600 checked:bg-market-600 checked:border-market-600 dark:checked:bg-market-600 dark:checked:border-market-600 shadow-sm focus:ring-market-500 focus:ring-2 focus:ring-offset-0">
                                             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Featured</span>
                                         </label>
                                         <label class="flex items-center gap-2 cursor-pointer">
                                             <input type="hidden" name="status" value="0">
                                             <input type="checkbox" id="status" name="status" value="1" {{ old('status', $category?->status ?? true) ? 'checked' : '' }}
-                                                class="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-market-600 shadow-sm focus:ring-market-500 focus:ring-2 focus:ring-offset-0">
+                                                class="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-market-600 checked:bg-market-600 checked:border-market-600 dark:checked:bg-market-600 dark:checked:border-market-600 shadow-sm focus:ring-market-500 focus:ring-2 focus:ring-offset-0">
                                             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Active</span>
                                         </label>
                                     </div>
