@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class CategoryController extends Controller
@@ -34,7 +35,7 @@ class CategoryController extends Controller
         if (!in_array($sortField, $allowed)) $sortField = 'sort_order';
         $query->orderBy($sortField, $sortDir === 'asc' ? 'asc' : 'desc');
 
-        $categories = $query->withCount('products')->paginate(15);
+        $categories = $query->withCount(['products', 'children'])->paginate(15);
         $parentCategories = Category::parents()->ordered()->get();
 
         return view('admin.categories.index', compact('categories', 'parentCategories', 'sortField', 'sortDir'));
@@ -121,13 +122,36 @@ class CategoryController extends Controller
 
     public function destroy(Category $category): RedirectResponse
     {
-        if ($category->children()->exists() || $category->products()->exists()) {
-            return back()->with('error', 'Cannot delete category with children or products.');
-        }
+        return DB::transaction(function () use ($category) {
+            $productCount = $category->products()->count();
+            $childCount = $category->children()->count();
 
-        $category->delete();
+            // Detach products — keep them, just remove category link
+            if ($productCount > 0) {
+                $category->products()->update(['category_id' => null]);
+            }
 
-        return redirect()->route('admin.categories.index')
-            ->with('success', 'Category deleted successfully.');
+            // Reassign child categories to this category's parent (or root if null)
+            if ($childCount > 0) {
+                $category->children()->update(['parent_id' => $category->parent_id]);
+            }
+
+            $category->delete();
+
+            $message = 'Category deleted successfully.';
+            if ($productCount > 0 || $childCount > 0) {
+                $parts = [];
+                if ($productCount > 0) {
+                    $parts[] = $productCount . ' product(s) detached';
+                }
+                if ($childCount > 0) {
+                    $parts[] = $childCount . ' child categorie(s) moved to parent';
+                }
+                $message .= ' (' . implode(', ', $parts) . '.)';
+            }
+
+            return redirect()->route('admin.categories.index')
+                ->with('success', $message);
+        });
     }
 }
