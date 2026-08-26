@@ -218,6 +218,17 @@
                     <span x-text="category.name"></span>
                 </a>
             </template>
+            <div class="border-t border-gray-100 dark:border-gray-700 my-2"></div>
+            <div class="sm:hidden">
+                @auth
+                    <a href="{{ Auth::user()->getDashboardRoute() }}" class="block px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">My Dashboard</a>
+                    <a href="{{ route('profile.edit') }}" class="block px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Profile Settings</a>
+                    <a href="{{ route('orders.index') }}" class="block px-3 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">My Orders</a>
+                @else
+                    <a href="{{ route('auth.choose') }}" class="block px-3 py-2.5 text-sm font-medium rounded-xl bg-market-600 text-white hover:bg-market-700 transition-colors text-center">Sign In</a>
+                    <a href="{{ route('auth.choose') }}" class="block px-3 py-2.5 text-sm font-medium rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-center">Create Account</a>
+                @endauth
+            </div>
         </div>
     </div>
 
