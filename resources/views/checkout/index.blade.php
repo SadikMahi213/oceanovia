@@ -212,6 +212,44 @@
                 }
             }
         </script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                if (typeof Stripe !== 'undefined') {
+                    const stripe = Stripe('{{ config('services.stripe.key') }}');
+                    const elements = stripe.elements();
+                    const cardElement = elements.create('card', {
+                        style: {
+                            base: {
+                                fontSize: '14px',
+                                color: '#374151',
+                                '::placeholder': { color: '#9ca3af' }
+                            }
+                        }
+                    });
+                    const mountPoint = document.getElementById('card-element');
+                    if (mountPoint) {
+                        cardElement.mount('#card-element');
+                        const form = document.getElementById('checkout-form');
+                        if (form) {
+                            form.addEventListener('submit', function(e) {
+                                if (document.querySelector('input[name="payment_method"]:checked')?.value === 'stripe') {
+                                    // Let Stripe handle, but allow form to submit
+                                    // The backend will create Stripe session
+                                }
+                            });
+                        }
+                        cardElement.on('change', function(event) {
+                            const displayError = document.getElementById('card-errors');
+                            if (event.error) {
+                                displayError.textContent = event.error.message;
+                            } else {
+                                displayError.textContent = '';
+                            }
+                        });
+                    }
+                }
+            });
+        </script>
     </section>
     @else
     {{-- Guest -- Login Prompt --}}

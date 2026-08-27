@@ -41,6 +41,11 @@ class ProductController extends Controller
 
     public function index(Request $request): View
     {
+        $request->validate([
+            'min_price' => 'nullable|numeric|min:0',
+            'max_price' => 'nullable|numeric|min:0|gte:min_price',
+        ]);
+
         $query = Product::published()
             ->with(['seller', 'category', 'inventory', 'reviews']);
 

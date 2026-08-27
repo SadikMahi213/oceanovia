@@ -15,9 +15,9 @@
     </section>
 
     <section class="py-8 lg:py-12 bg-white dark:bg-gray-950" x-data>
-        <div class="max-w-7xl mx-auto px-4">
+        <div class="max-w-7xl mx-auto px-4" x-data="{ cartLoaded: false }" x-init="setTimeout(() => cartLoaded = true, 500)">
             {{-- Empty State --}}
-            <div x-show="$store.cart.count === 0" class="text-center py-16 lg:py-24">
+            <div x-show="cartLoaded && $store.cart.count === 0" x-cloak class="text-center py-16 lg:py-24">
                 <svg class="w-24 h-24 mx-auto text-gray-200 dark:text-gray-700 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
                 <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Your cart is empty</h2>
                 <p class="text-gray-500 dark:text-gray-400 mb-8 max-w-md mx-auto">Looks like you haven't added anything yet. Start exploring our marketplace and find something you love!</p>
@@ -28,7 +28,7 @@
             </div>
 
             {{-- Cart Content --}}
-            <div x-show="$store.cart.count > 0" x-cloak class="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+            <div x-show="cartLoaded && $store.cart.count > 0" x-cloak class="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
                 {{-- Cart Items --}}
                 <div class="lg:col-span-2 space-y-4">
                     <template x-for="(item, index) in $store.cart.items" :key="item.id">

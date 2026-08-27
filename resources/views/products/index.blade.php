@@ -63,9 +63,9 @@
                                 @endforeach
                                 <div class="space-y-4">
                                     <div class="flex items-center gap-2">
-                                        <input type="number" name="min_price" placeholder="Min" value="{{ $minPrice }}" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        <input type="number" name="min_price" placeholder="Min" value="{{ $minPrice }}" min="0" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                         <span class="text-gray-400">—</span>
-                                        <input type="number" name="max_price" placeholder="Max" value="{{ $maxPrice }}" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        <input type="number" name="max_price" placeholder="Max" value="{{ $maxPrice }}" min="0" class="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                     </div>
                                     <button type="submit" class="w-full py-2 bg-market-600 hover:bg-market-700 text-white text-sm font-medium rounded-lg transition-colors">Filter</button>
                                 </div>

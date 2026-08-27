@@ -27,10 +27,11 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                    @forelse($inventory as $product)
+                                    @forelse($inventory as $item)
                                         @php
-                                            $stock = $product->stock_quantity ?? 0;
-                                            $threshold = $product->inventory?->low_stock_threshold ?? 5;
+                                            $product = $item->product;
+                                            $stock = $item->stock_quantity ?? 0;
+                                            $threshold = $item->low_stock_threshold ?? 5;
                                             if ($stock <= 0) {
                                                 $stockStatus = 'out';
                                                 $statusBadge = 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
@@ -46,18 +47,18 @@
                                             <td class="px-5 py-4">
                                                 <div class="flex items-center gap-3">
                                                     <div class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden shrink-0">
-                                                        @if($product->thumbnail)
-                                                            <img src="{{ $product->thumbnail }}" alt="{{ $product->name }}" class="w-full h-full object-cover">
+                                                        @if($product?->thumbnail)
+                                                            <img src="{{ $product->thumbnail }}" alt="{{ $product?->name }}" class="w-full h-full object-cover">
                                                         @else
                                                             <div class="w-full h-full flex items-center justify-center">
                                                                 <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                                             </div>
                                                         @endif
                                                     </div>
-                                                    <span class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[200px]">{{ $product->name }}</span>
+                                                    <span class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[200px]">{{ $product?->name ?? '—' }}</span>
                                                 </div>
                                             </td>
-                                            <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $product->sku ?? '—' }}</td>
+                                            <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $product?->sku ?? '—' }}</td>
                                             <td class="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">{{ $stock }}</td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400 text-right">{{ $threshold }}</td>
                                             <td class="px-5 py-4">
@@ -71,8 +72,13 @@
                                             <td class="px-5 py-4">
                                                 <form method="POST" action="{{ route('seller.inventory.adjust', $product) }}" class="flex items-center gap-2">
                                                     @csrf
+                                                    <select name="type" required class="px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-market-500 focus:border-market-500">
+                                                        <option value="adjustment">Set</option>
+                                                        <option value="addition">Add</option>
+                                                        <option value="removal">Remove</option>
+                                                    </select>
                                                     <input type="number" name="quantity" placeholder="Qty" required class="w-16 px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-market-500 focus:border-market-500">
-                                                    <input type="text" name="reason" placeholder="Reason" class="w-28 px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-market-500 focus:border-market-500">
+                                                    <input type="text" name="reason" placeholder="Reason" required class="w-28 px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-market-500 focus:border-market-500">
                                                     <button type="submit" class="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-market-600 hover:bg-market-700 rounded-lg transition-colors">Update</button>
                                                 </form>
                                             </td>
