@@ -149,7 +149,7 @@
                         </div>
 
                         {{-- Place Order --}}
-                        <button type="submit" id="place-order-btn" class="w-full py-3.5 bg-market-600 hover:bg-market-700 text-white font-medium rounded-xl transition-colors text-base flex items-center justify-center gap-2">
+                        <button type="submit" id="place-order-btn" class="w-full py-3.5 bg-market-600 hover:bg-market-700 text-white font-medium rounded-xl transition-colors text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" onclick="this.disabled=true; this.innerHTML='<svg class=\'w-5 h-5 animate-spin\' fill=\'none\' viewBox=\'0 0 24 24\'><circle class=\'opacity-25\' cx=\'12\' cy=\'12\' r=\'10\' stroke=\'currentColor\' stroke-width=\'4\'/><path class=\'opacity-75\' fill=\'currentColor\' d=\'M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z\'/></svg> Placing Order...'; this.form.submit();">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             Place Order
                         </button>
