@@ -150,7 +150,9 @@
                             <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recently Viewed</h2>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 @foreach($recentlyViewed as $item)
-                                    @include('components.product-card', ['product' => $item->product ?? $item])
+                                    @if($item->product)
+                                        @include('components.product-card', ['product' => $item->product])
+                                    @endif
                                 @endforeach
                             </div>
                         </div>

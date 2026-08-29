@@ -46,7 +46,12 @@ class CustomerController extends Controller
 
         $recentOrders = Order::byUser($userId)->with('items')->latest()->take(5)->get();
 
-        $recentlyViewed = RecentlyViewed::forUser($userId)->with('product')->orderBy('updated_at', 'desc')->take(8)->get();
+        $recentlyViewed = RecentlyViewed::forUser($userId)
+            ->with('product')
+            ->whereHas('product', fn ($q) => $q->published())
+            ->orderBy('updated_at', 'desc')
+            ->take(8)
+            ->get();
 
         $notifications = UserNotification::where('notifiable_id', $userId)
             ->where('notifiable_type', 'App\Models\User')->unread()->latest()->take(5)->get();
@@ -364,7 +369,11 @@ class CustomerController extends Controller
 
     public function recentlyViewed(): View
     {
-        $items = RecentlyViewed::forUser(auth()->id())->with('product')->orderBy('updated_at', 'desc')->paginate(20);
+        $items = RecentlyViewed::forUser(auth()->id())
+            ->with('product')
+            ->whereHas('product', fn ($q) => $q->published())
+            ->orderBy('updated_at', 'desc')
+            ->paginate(20);
         return view('customer.saved.recently-viewed', compact('items'));
     }
 

@@ -15,7 +15,9 @@
                     @if($items && $items->count() > 0)
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
                             @foreach($items as $item)
-                                @include('components.product-card', ['product' => $item->product])
+                                @if($item->product)
+                                    @include('components.product-card', ['product' => $item->product])
+                                @endif
                             @endforeach
                         </div>
                         @if($items->hasPages())
