@@ -24,60 +24,113 @@
 <x-app-layout>
     @section('title', 'Home')
 
-    {{-- Hero Banner --}}
-    @php $banner = $heroBanners[0]; @endphp
-    <section class="relative overflow-hidden bg-gradient-to-br {{ $banner->bg_gradient ?? 'from-market-600 via-market-700 to-purple-900' }}">
+    {{-- Hero Banner Carousel --}}
+    <section
+        x-data="{
+            active: 0,
+            count: {{ $heroBanners->count() }},
+            timer: null,
+            next() { if (this.count > 1) this.active = (this.active + 1) % this.count; },
+            prev() { if (this.count > 1) this.active = (this.active - 1 + this.count) % this.count; },
+            go(i) { this.active = i; },
+            start() {
+                if (this.count > 1 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    this.timer = setInterval(() => this.next(), 6000);
+                }
+            },
+            stop() { clearInterval(this.timer); },
+        }"
+        x-init="start()"
+        @mouseenter="stop()"
+        @mouseleave="start()"
+        @focusin="stop()"
+        @focusout="start()"
+        class="relative overflow-hidden bg-market-700"
+        aria-roledescription="carousel"
+        aria-label="Featured banners"
+    >
         <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyek0zNiAyNHYyYTEwIDEwIDAgMCAxLTEyIDB2LTJoMTJ6TTM2IDM0djJhMTAgMTAgMCAwIDEtMTIgMHYtMmgxMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30"></div>
-        <div class="max-w-7xl mx-auto px-4 py-16 lg:py-24 relative">
-            <div class="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
-                <div class="flex-1 text-center lg:text-left">
-                    <span class="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-white/90 text-xs font-medium mb-6">
-                        <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                        USA Marketplace — Free Shipping Over $50
-                    </span>
-                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4">
-                        {!! nl2br(e($banner->title ?? 'Discover Unique\nAmerican-Made Products')) !!}
-                    </h1>
-                    <p class="text-lg text-purple-200 max-w-xl mb-8">
-                        {{ $banner->subtitle ?? 'Shop from thousands of independent sellers and suppliers across the USA' }}
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-                        <a href="{{ $banner->link ?? route('products.index') }}" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-white text-market-700 font-semibold rounded-xl hover:bg-gray-100 transition-all shadow-xl shadow-black/10">
-                            {{ $banner->btn_text ?? 'Start Shopping' }}
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-                        </a>
-                        <a href="{{ route('products.sellers') }}" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 border-2 border-white/20 text-white font-semibold rounded-xl hover:bg-white/10 transition-all">
-                            Browse Sellers
-                        </a>
-                    </div>
-                    <div class="flex items-center gap-8 mt-10 justify-center lg:justify-start">
-                        <div>
-                            <div class="text-2xl font-bold text-white">10K+</div>
-                            <div class="text-sm text-purple-200">Products</div>
-                        </div>
-                        <div class="w-px h-10 bg-white/20"></div>
-                        <div>
-                            <div class="text-2xl font-bold text-white">500+</div>
-                            <div class="text-sm text-purple-200">Sellers</div>
-                        </div>
-                        <div class="w-px h-10 bg-white/20"></div>
-                        <div>
-                            <div class="text-2xl font-bold text-white">50K+</div>
-                            <div class="text-sm text-purple-200">Customers</div>
+
+        <div class="relative">
+            <div class="flex transition-transform duration-700 ease-in-out" :style="`transform: translateX(-${active * 100}%)`">
+                @foreach($heroBanners as $banner)
+                <div class="w-full flex-shrink-0 bg-market-700 bg-gradient-to-br {{ $banner->bg_gradient ?? 'from-market-600 via-market-700 to-purple-900' }}"
+                     role="group" aria-roledescription="slide" aria-label="Banner {{ $loop->iteration }} of {{ $heroBanners->count() }}">
+                    <div class="max-w-7xl mx-auto px-4 py-16 lg:py-24 relative">
+                        <div class="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
+                            <div class="flex-1 text-center lg:text-left">
+                                <span class="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-white/90 text-xs font-medium mb-6">
+                                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                                    USA Marketplace — Free Shipping Over $50
+                                </span>
+                                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4">
+                                    {!! nl2br(e($banner->title ?? 'Discover Unique\nAmerican-Made Products')) !!}
+                                </h1>
+                                <p class="text-lg text-purple-200 max-w-xl mb-8">
+                                    {{ $banner->subtitle ?? 'Shop from thousands of independent sellers and suppliers across the USA' }}
+                                </p>
+                                <div class="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+                                    <a href="{{ $banner->link ?? route('products.index') }}" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-white text-market-700 font-semibold rounded-xl hover:bg-gray-100 transition-all shadow-xl shadow-black/10">
+                                        {{ $banner->btn_text ?? 'Start Shopping' }}
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                                    </a>
+                                    <a href="{{ route('products.sellers') }}" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 border-2 border-white/20 text-white font-semibold rounded-xl hover:bg-white/10 transition-all">
+                                        Browse Sellers
+                                    </a>
+                                </div>
+                                <div class="flex items-center gap-8 mt-10 justify-center lg:justify-start">
+                                    <div>
+                                        <div class="text-2xl font-bold text-white">10K+</div>
+                                        <div class="text-sm text-purple-200">Products</div>
+                                    </div>
+                                    <div class="w-px h-10 bg-white/20"></div>
+                                    <div>
+                                        <div class="text-2xl font-bold text-white">500+</div>
+                                        <div class="text-sm text-purple-200">Sellers</div>
+                                    </div>
+                                    <div class="w-px h-10 bg-white/20"></div>
+                                    <div>
+                                        <div class="text-2xl font-bold text-white">50K+</div>
+                                        <div class="text-sm text-purple-200">Customers</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex-shrink-0">
+                                @if($banner->image ?? false)
+                                    <img src="{{ asset('storage/' . $banner->image) }}" alt="{{ $banner->title ?? 'Marketplace' }}" loading="lazy" class="w-64 h-64 lg:w-80 lg:h-80 object-cover rounded-3xl">
+                                @else
+                                <div class="w-64 h-64 lg:w-80 lg:h-80 bg-white/5 backdrop-blur-sm rounded-3xl flex items-center justify-center border border-white/10">
+                                    <span class="text-8xl font-black text-white/20">{{ $banner->image_icon ?? 'M' }}</span>
+                                </div>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="flex-shrink-0">
-                    @if($banner->image ?? false)
-                        <img src="{{ asset('storage/' . $banner->image) }}" alt="{{ $banner->title ?? 'Marketplace' }}" loading="lazy" class="w-64 h-64 lg:w-80 lg:h-80 object-cover rounded-3xl">
-                    @else
-                    <div class="w-64 h-64 lg:w-80 lg:h-80 bg-white/5 backdrop-blur-sm rounded-3xl flex items-center justify-center border border-white/10">
-                        <span class="text-8xl font-black text-white/20">{{ $banner->image_icon ?? 'M' }}</span>
-                    </div>
-                    @endif
-                </div>
+                @endforeach
             </div>
         </div>
+
+        @if($heroBanners->count() > 1)
+        <button type="button" @click="prev()" aria-label="Previous banner"
+            class="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-white/15 backdrop-blur-sm text-white hover:bg-white/30 transition focus:outline-none focus:ring-2 focus:ring-white/60">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button type="button" @click="next()" aria-label="Next banner"
+            class="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-white/15 backdrop-blur-sm text-white hover:bg-white/30 transition focus:outline-none focus:ring-2 focus:ring-white/60">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/20 backdrop-blur-sm rounded-full px-3 py-2">
+            @foreach($heroBanners as $b)
+            <button type="button" @click="go({{ $loop->index }})"
+                :aria-current="active === {{ $loop->index }} ? 'true' : 'false'"
+                aria-label="Go to banner {{ $loop->iteration }}"
+                class="w-2.5 h-2.5 rounded-full transition focus:outline-none focus:ring-2 focus:ring-white/60"
+                :class="active === {{ $loop->index }} ? 'bg-white scale-110' : 'bg-white/40 hover:bg-white/70'"></button>
+            @endforeach
+        </div>
+        @endif
+
         <div class="absolute bottom-0 left-0 right-0">
             <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full">
                 <path d="M0 60V30C240 0 480 0 720 30C960 60 1200 60 1440 30V60H0Z" fill="white" class="fill-white dark:fill-gray-950"/>

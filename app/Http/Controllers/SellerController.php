@@ -312,7 +312,7 @@ class SellerController extends Controller
             $product->variants()->whereNotIn('id', $submittedIds)->delete();
         }
 
-        return redirect()->back()
+        return redirect()->route('seller.products.index')
             ->with('success', 'Product updated successfully.');
     }
 

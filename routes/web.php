@@ -67,6 +67,7 @@ Route::prefix('cart')->name('cart.')->group(function () {
     Route::post('/update', [CartController::class, 'update'])->middleware('throttle:cart')->name('update');
     Route::delete('/{id}', [CartController::class, 'remove'])->middleware('throttle:cart')->name('remove');
     Route::post('/sync', [CartController::class, 'sync'])->middleware(['auth', 'throttle:cart'])->name('sync');
+    Route::get('/load', [CartController::class, 'load'])->middleware('auth')->name('load');
 });
 
 // ─── Checkout ───────────────────────────────────────────────────────────

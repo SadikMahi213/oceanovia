@@ -59,6 +59,22 @@ Alpine.store('cart', {
         } catch (e) { /* silent fail */ }
         finally { this._syncing = false; }
     },
+    // Load the authenticated user's own cart from the server AFTER login.
+    // Discards any guest/localStorage cart (no merge) so a guest's cart is
+    // never carried into the authenticated user's cart.
+    async loadFromServer() {
+        try {
+            const resp = await fetch('/cart/load', {
+                method: 'GET',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content },
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                this.items = data.items ?? [];
+                this.updateSummary();
+            }
+        } catch (e) { /* silent fail */ }
+    },
     addItem(product, quantity = 1) {
         quantity = Number(quantity) || 1;
         const existing = this.items.find(i => i.id === product.id);
@@ -245,7 +261,7 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     if (document.querySelector('meta[name="user-authed"]')?.content === '1') {
-        setTimeout(() => Alpine.store('cart')?.syncWithServer(), 800);
+        setTimeout(() => Alpine.store('cart')?.loadFromServer(), 800);
     }
     Alpine.store('menu').init();
 });

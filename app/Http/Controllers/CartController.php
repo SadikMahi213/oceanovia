@@ -181,4 +181,37 @@ class CartController extends Controller
             ])->values(),
         ]);
     }
+
+    /**
+     * Load the authenticated user's existing cart (used after login).
+     *
+     * Intentionally does NOT merge any guest/localStorage cart — the guest cart
+     * is discarded and only the user's own persisted cart is returned.
+     */
+    public function load(): JsonResponse
+    {
+        if (! auth()->check()) {
+            return response()->json(['items' => []]);
+        }
+
+        $cart = Cart::with('items.product.inventory', 'items.product.seller')
+            ->where('user_id', auth()->id())
+            ->first();
+
+        $items = $cart?->items?->filter(fn ($i) => $i->product)
+            ->map(fn ($i) => [
+                'id' => $i->product_id,
+                'cartItemId' => $i->id,
+                'name' => $i->product->name,
+                'price' => (float) $i->unit_price,
+                'slug' => $i->product->slug,
+                'image' => $i->product->image_url,
+                'quantity' => $i->quantity,
+                'sellerId' => $i->product->seller_id,
+                'supplierId' => $i->product->inventory?->supplier_id,
+                'weight' => (float) ($i->product->weight ?? 0),
+            ])->values() ?? [];
+
+        return response()->json(['items' => $items]);
+    }
 }
