@@ -9,7 +9,7 @@
                 <span class="text-white font-medium">FAQ</span>
             </nav>
             <h1 class="text-3xl lg:text-4xl font-bold text-white">Frequently Asked Questions</h1>
-            <p class="text-market-200 mt-2 max-w-xl">Answers to common questions about shopping, selling, and shipping on MulitVendor USA.</p>
+            <p class="text-market-200 mt-2 max-w-xl">Answers to common questions about shopping, selling, and shipping on Oceanovia.com.</p>
         </div>
     </section>
 

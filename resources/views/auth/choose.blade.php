@@ -1,5 +1,5 @@
 <x-guest-layout>
-    @section('auth_title', 'Welcome to MulitVendor')
+    @section('auth_title', 'Welcome to Oceanovia.com')
     @section('auth_subtitle', 'Choose how you want to use the platform')
     <div class="space-y-4">
         <p class="text-center text-sm text-gray-600 dark:text-gray-400 mb-6">Select your account type to continue — you can always switch later.</p>

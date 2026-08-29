@@ -16,8 +16,8 @@
     <meta name="user-authed" content="{{ auth()->check() ? '1' : '0' }}">
 
     {{-- SEO Meta --}}
-    <title>@hasSection('title') @yield('title') | @endif {{ config('app.name', 'MulitVendor USA') }}</title>
-    <meta name="description" content="@yield('meta_description', 'MulitVendor USA - The premier marketplace for unique products from American sellers and suppliers.')">
+    <title>@hasSection('title') @yield('title') | @endif {{ config('app.name', 'Oceanovia.com') }}</title>
+    <meta name="description" content="@yield('meta_description', 'Oceanovia.com - Where Global Trade Flows. The premier marketplace for unique products from American sellers and suppliers.')">
     <meta property="og:title" content="@yield('og_title', config('app.name'))">
     <meta property="og:description" content="@yield('og_description', 'Discover amazing products from sellers across the USA.')">
     <meta property="og:image" content="@yield('og_image', asset('images/og-default.png'))">

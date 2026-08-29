@@ -115,7 +115,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name'      => 'Admin',
                 'lastname'  => 'User',
                 'username'  => 'admin',
-                'email'     => 'admin@mulitvendor.com',
+                'email'     => 'admin@oceanovia.com',
                 'phone'     => '+1 (555) 000-0001',
                 'password'  => 'Password@123',
                 'role_type' => 'admin',
@@ -127,7 +127,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name'      => 'John',
                 'lastname'  => 'Seller',
                 'username'  => 'johnseller',
-                'email'     => 'seller@mulitvendor.com',
+                'email'     => 'seller@oceanovia.com',
                 'phone'     => '+1 (555) 000-0002',
                 'password'  => 'Password@123',
                 'role_type' => 'seller',
@@ -139,7 +139,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name'      => 'Jane',
                 'lastname'  => 'Supplier',
                 'username'  => 'janesupplier',
-                'email'     => 'supplier@mulitvendor.com',
+                'email'     => 'supplier@oceanovia.com',
                 'phone'     => '+1 (555) 000-0003',
                 'password'  => 'Password@123',
                 'role_type' => 'supplier',
@@ -151,7 +151,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'name'      => 'Bob',
                 'lastname'  => 'Customer',
                 'username'  => 'bobcustomer',
-                'email'     => 'customer@mulitvendor.com',
+                'email'     => 'customer@oceanovia.com',
                 'phone'     => '+1 (555) 000-0004',
                 'password'  => 'Password@123',
                 'role_type' => 'customer',
@@ -176,10 +176,10 @@ class RolesAndPermissionsSeeder extends Seeder
         }
 
         $this->command->info('Default users created:');
-        $this->command->info('  admin@mulitvendor.com / Password@123');
-        $this->command->info('  seller@mulitvendor.com / Password@123');
-        $this->command->info('  supplier@mulitvendor.com / Password@123');
-        $this->command->info('  customer@mulitvendor.com / Password@123');
+        $this->command->info('  admin@oceanovia.com / Password@123');
+        $this->command->info('  seller@oceanovia.com / Password@123');
+        $this->command->info('  supplier@oceanovia.com / Password@123');
+        $this->command->info('  customer@oceanovia.com / Password@123');
     }
 }
 

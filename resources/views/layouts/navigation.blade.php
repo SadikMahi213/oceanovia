@@ -23,10 +23,10 @@
             <div class="flex items-center gap-3 shrink-0">
                 <a href="{{ route('home') }}" class="flex items-center gap-2">
                     <div class="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-market-500 to-market-700 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-sm lg:text-base">M</span>
+                        <span class="text-white font-bold text-sm lg:text-base">O</span>
                     </div>
                     <span class="hidden sm:block text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
-                        <span class="text-market-600">Mulit</span>Vendor
+                        <span class="text-market-600">Oceanovia</span>.com
                     </span>
                 </a>
             </div>

@@ -1,7 +1,7 @@
 @php $role = request('role', request()->query('role')) ?? old('role'); $role = in_array($role, ['customer','seller','supplier']) ? $role : null; $roleLabel = $role ? ucfirst($role) : null; @endphp
 <x-guest-layout>
     @section('auth_title', $roleLabel ? $roleLabel.' Login' : 'Welcome back')
-    @section('auth_subtitle', $roleLabel ? 'Sign in as '.$roleLabel.' to continue' : 'Sign in to your MulitVendor account')
+    @section('auth_subtitle', $roleLabel ? 'Sign in as '.$roleLabel.' to continue' : 'Sign in to your Oceanovia.com account')
     @section('auth_footer')
         <span>Don't have an account? <a href="{{ route('register', $role ? ['role'=>$role] : []) }}" class="font-medium text-market-600 hover:text-market-700 dark:text-market-400 dark:hover:text-market-300 transition-colors">Create one{{ $roleLabel ? ' as '.$roleLabel : '' }}</a></span>
     @endsection
@@ -88,7 +88,7 @@
                 <div class="w-full border-t border-gray-200 dark:border-gray-800"></div>
             </div>
             <div class="relative flex justify-center text-xs uppercase">
-                <span class="bg-white dark:bg-gray-900 px-3 text-gray-500 dark:text-gray-400">Secure checkout via MulitVendor</span>
+                <span class="bg-white dark:bg-gray-900 px-3 text-gray-500 dark:text-gray-400">Secure checkout via Oceanovia.com</span>
             </div>
         </div>
 

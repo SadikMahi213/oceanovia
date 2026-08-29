@@ -19,7 +19,7 @@ class DemoDataSeeder extends Seeder
         // ─── Users ──────────────────────────────────────────────────────────
 
         $admin = User::firstOrCreate(
-            ['email' => 'admin@mulitvendor.com'],
+            ['email' => 'admin@oceanovia.com'],
             [
                 'name'              => 'Admin',
                 'lastname'          => 'User',
@@ -33,7 +33,7 @@ class DemoDataSeeder extends Seeder
         );
 
         $seller = User::firstOrCreate(
-            ['email' => 'seller@mulitvendor.com'],
+            ['email' => 'seller@oceanovia.com'],
             [
                 'name'              => 'John',
                 'lastname'          => 'Seller',
@@ -47,7 +47,7 @@ class DemoDataSeeder extends Seeder
         );
 
         $supplier = User::firstOrCreate(
-            ['email' => 'supplier@mulitvendor.com'],
+            ['email' => 'supplier@oceanovia.com'],
             [
                 'name'              => 'Jane',
                 'lastname'          => 'Supplier',
@@ -61,7 +61,7 @@ class DemoDataSeeder extends Seeder
         );
 
         $customer = User::firstOrCreate(
-            ['email' => 'customer@mulitvendor.com'],
+            ['email' => 'customer@oceanovia.com'],
             [
                 'name'              => 'Bob',
                 'lastname'          => 'Customer',
@@ -440,10 +440,10 @@ class DemoDataSeeder extends Seeder
         }
 
         $this->command->info('Demo data seeded successfully!');
-        $this->command->info('  admin@mulitvendor.com    / Password@123  (Admin)');
-        $this->command->info('  seller@mulitvendor.com   / Password@123  (Seller)');
-        $this->command->info('  supplier@mulitvendor.com / Password@123  (Supplier)');
-        $this->command->info('  customer@mulitvendor.com / Password@123  (Customer)');
+        $this->command->info('  admin@oceanovia.com    / Password@123  (Admin)');
+        $this->command->info('  seller@oceanovia.com   / Password@123  (Seller)');
+        $this->command->info('  supplier@oceanovia.com / Password@123  (Supplier)');
+        $this->command->info('  customer@oceanovia.com / Password@123  (Customer)');
     }
 }
 

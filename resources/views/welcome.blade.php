@@ -228,7 +228,7 @@
                 <div class="relative flex flex-col lg:flex-row items-center justify-between gap-6">
                     <div>
                         <span class="inline-block px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-white/80 text-xs font-medium mb-4">🔥 Limited Time</span>
-                        <h2 class="text-2xl lg:text-3xl font-bold text-white mb-2">Start Selling on MulitVendor Today</h2>
+                        <h2 class="text-2xl lg:text-3xl font-bold text-white mb-2">Start Selling on Oceanovia.com Today</h2>
                         <p class="text-purple-200">Join 500+ American sellers and reach thousands of customers nationwide.</p>
                     </div>
                     <a href="{{ route('register', ['role'=>'seller']) }}" class="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-market-700 font-semibold rounded-xl hover:bg-gray-100 transition-all shadow-xl shadow-black/10 shrink-0">Become a Seller <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg></a>
@@ -241,7 +241,7 @@
     <section class="py-12 lg:py-20 bg-gray-50 dark:bg-gray-900/50">
         <div class="max-w-7xl mx-auto px-4">
             <div class="text-center mb-12">
-                <h2 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">Why MulitVendor USA?</h2>
+                <h2 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">Why Oceanovia.com?</h2>
                 <p class="text-gray-500 dark:text-gray-400 mt-2">The best marketplace experience for everyone</p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

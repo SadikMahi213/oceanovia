@@ -14,7 +14,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', config('app.name', 'MulitVendor USA'))</title>
+    <title>@yield('title', config('app.name', 'Oceanovia.com'))</title>
 
     {{-- Fonts --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,10 +32,10 @@
             <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                 <a href="{{ route('home') }}" class="flex items-center gap-2">
                     <div class="w-8 h-8 bg-gradient-to-br from-market-500 to-market-700 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-sm">M</span>
+                        <span class="text-white font-bold text-sm">O</span>
                     </div>
                     <span class="text-lg font-bold text-gray-900 dark:text-white">
-                        <span class="text-market-600">Mulit</span>Vendor
+                        <span class="text-market-600">Oceanovia</span>.com
                     </span>
                 </a>
 
@@ -58,11 +58,11 @@
                 <div class="text-center mb-8">
                     <a href="{{ route('home') }}" class="inline-flex items-center gap-3 mb-4">
                         <div class="w-12 h-12 bg-gradient-to-br from-market-500 to-market-700 rounded-2xl flex items-center justify-center shadow-lg shadow-market-500/20">
-                            <span class="text-white font-bold text-xl">M</span>
+                            <span class="text-white font-bold text-xl">O</span>
                         </div>
                     </a>
                     <h1 class="text-2xl font-bold text-gray-900 dark:text-white">@yield('auth_title', 'Welcome')</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">@yield('auth_subtitle', 'Sign in to your MulitVendor account')</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">@yield('auth_subtitle', 'Sign in to your Oceanovia.com account')</p>
                 </div>
 
                 {{-- Auth Card --}}

@@ -1,7 +1,7 @@
 @php $role = request('role', request()->query('role')) ?? old('role_type'); $role = in_array($role, ['customer','seller','supplier']) ? $role : null; $roleLabel = $role ? ucfirst($role) : null; @endphp
 <x-guest-layout>
     @section('auth_title', $roleLabel ? 'Create '.$roleLabel.' Account' : 'Create your account')
-    @section('auth_subtitle', $roleLabel ? 'You\'re registering as '.$roleLabel.' — join as '.$roleLabel : 'Join MulitVendor and start shopping or selling today')
+    @section('auth_subtitle', $roleLabel ? 'You\'re registering as '.$roleLabel.' — join as '.$roleLabel : 'Join Oceanovia.com and start shopping or selling today')
     @section('auth_footer')
         <span>Already have an account? <a href="{{ route('login', $role ? ['role'=>$role] : []) }}" class="font-medium text-market-600 hover:text-market-700 dark:text-market-400 dark:hover:text-market-300 transition-colors">Sign in{{ $roleLabel ? ' as '.$roleLabel : '' }}</a></span>
     @endsection

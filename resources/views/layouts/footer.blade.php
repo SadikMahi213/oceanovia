@@ -22,9 +22,9 @@
             <div class="col-span-2 md:col-span-3 lg:col-span-1">
                 <a href="{{ route('home') }}" class="flex items-center gap-2 mb-4">
                     <div class="w-8 h-8 bg-gradient-to-br from-market-500 to-market-700 rounded-lg flex items-center justify-center">
-                        <span class="text-white font-bold text-sm">M</span>
+                        <span class="text-white font-bold text-sm">O</span>
                     </div>
-                    <span class="text-lg font-bold text-white">MulitVendor</span>
+                    <span class="text-lg font-bold text-white">Oceanovia.com</span>
                 </a>
                 <p class="text-sm text-gray-400 leading-relaxed mb-4">The premier USA marketplace connecting customers with authentic sellers and suppliers nationwide.</p>
                 <div class="flex items-center gap-3">
@@ -87,7 +87,7 @@
     {{-- Bottom Bar --}}
     <div class="border-t border-gray-800">
         <div class="max-w-7xl mx-auto px-4 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p class="text-sm text-gray-400">&copy; {{ date('Y') }} MulitVendor USA. All rights reserved.</p>
+            <p class="text-sm text-gray-400">&copy; {{ date('Y') }} Oceanovia.com. All rights reserved.</p>
             <div class="flex items-center gap-4 text-sm text-gray-400">
                 <span>🇺🇸 USA Marketplace</span>
                 <span class="hidden sm:inline">·</span>

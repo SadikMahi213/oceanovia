@@ -9,7 +9,7 @@
                 <span class="text-white font-medium">Contact Us</span>
             </nav>
             <h1 class="text-3xl lg:text-4xl font-bold text-white">Get in Touch</h1>
-            <p class="text-market-200 mt-2 max-w-xl">Questions about an order, your account, or selling on MulitVendor? Send us a message.</p>
+            <p class="text-market-200 mt-2 max-w-xl">Questions about an order, your account, or selling on Oceanovia.com? Send us a message.</p>
         </div>
     </section>
 
