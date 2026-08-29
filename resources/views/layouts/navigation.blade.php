@@ -139,13 +139,13 @@
                         </div>
                     </div>
                 @else
-                    <a href="{{ route('auth.choose') }}" class="hidden sm:inline-flex items-center px-4 py-2 bg-market-600 hover:bg-market-700 text-white text-sm font-medium rounded-xl transition-colors ml-2">
+                    <a href="{{ route('auth.choose') }}" class="inline-flex items-center justify-center px-3 sm:px-4 py-2.5 bg-market-600 hover:bg-market-700 text-white text-sm font-medium rounded-xl transition-colors min-h-[44px]">
                         Sign In
                     </a>
                 @endauth
 
-                {{-- Dark mode toggle (mobile visible) --}}
-                <button @click="$store.app.toggleDarkMode()" aria-label="Toggle dark mode" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="Toggle theme (Ctrl+Shift+L)">
+                {{-- Dark mode toggle (hidden on small phones to make room for the Login button) --}}
+                <button @click="$store.app.toggleDarkMode()" aria-label="Toggle dark mode" class="hidden sm:block p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="Toggle theme (Ctrl+Shift+L)">
                     <svg x-show="!$store.app.darkMode" class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
                     <svg x-show="$store.app.darkMode" class="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                 </button>
