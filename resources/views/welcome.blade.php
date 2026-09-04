@@ -56,54 +56,15 @@
                 @foreach($heroBanners as $banner)
                 <div class="w-full flex-shrink-0 bg-market-700 bg-gradient-to-br {{ $banner->bg_gradient ?? 'from-market-600 via-market-700 to-purple-900' }}"
                      role="group" aria-roledescription="slide" aria-label="Banner {{ $loop->iteration }} of {{ $heroBanners->count() }}">
-                    <div class="max-w-7xl mx-auto px-4 py-16 lg:py-24 relative">
-                        <div class="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
-                            <div class="flex-1 text-center lg:text-left">
-                                <span class="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-white/90 text-xs font-medium mb-6">
-                                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                                    USA Marketplace — Free Shipping Over $50
-                                </span>
-                                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4">
-                                    {!! nl2br(e($banner->title ?? 'Discover Unique\nAmerican-Made Products')) !!}
-                                </h1>
-                                <p class="text-lg text-purple-200 max-w-xl mb-8">
-                                    {{ $banner->subtitle ?? 'Shop from thousands of independent sellers and suppliers across the USA' }}
-                                </p>
-                                <div class="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-                                    <a href="{{ $banner->link ?? route('products.index') }}" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-white text-market-700 font-semibold rounded-xl hover:bg-gray-100 transition-all shadow-xl shadow-black/10">
-                                        {{ $banner->btn_text ?? 'Start Shopping' }}
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-                                    </a>
-                                    <a href="{{ route('products.sellers') }}" class="inline-flex items-center justify-center gap-2 px-8 py-3.5 border-2 border-white/20 text-white font-semibold rounded-xl hover:bg-white/10 transition-all">
-                                        Browse Sellers
-                                    </a>
-                                </div>
-                                <div class="flex items-center gap-8 mt-10 justify-center lg:justify-start">
-                                    <div>
-                                        <div class="text-2xl font-bold text-white">10K+</div>
-                                        <div class="text-sm text-purple-200">Products</div>
-                                    </div>
-                                    <div class="w-px h-10 bg-white/20"></div>
-                                    <div>
-                                        <div class="text-2xl font-bold text-white">500+</div>
-                                        <div class="text-sm text-purple-200">Sellers</div>
-                                    </div>
-                                    <div class="w-px h-10 bg-white/20"></div>
-                                    <div>
-                                        <div class="text-2xl font-bold text-white">50K+</div>
-                                        <div class="text-sm text-purple-200">Customers</div>
-                                    </div>
-                                </div>
+                    <div class="max-w-7xl mx-auto px-4 py-8 lg:py-12 relative">
+                        <div class="flex items-center justify-center">
+                            @if($banner->image ?? false)
+                                <img src="{{ asset('storage/' . $banner->image) }}" alt="{{ $banner->title ?? 'Marketplace' }}" loading="lazy" class="max-w-full max-h-[70vh] w-auto h-auto mx-auto rounded-2xl">
+                            @else
+                            <div class="w-64 h-64 lg:w-80 lg:h-80 bg-white/5 backdrop-blur-sm rounded-3xl flex items-center justify-center border border-white/10">
+                                <span class="text-8xl font-black text-white/20">{{ $banner->image_icon ?? 'M' }}</span>
                             </div>
-                            <div class="flex-shrink-0">
-                                @if($banner->image ?? false)
-                                    <img src="{{ asset('storage/' . $banner->image) }}" alt="{{ $banner->title ?? 'Marketplace' }}" loading="lazy" class="w-64 h-64 lg:w-80 lg:h-80 object-cover rounded-3xl">
-                                @else
-                                <div class="w-64 h-64 lg:w-80 lg:h-80 bg-white/5 backdrop-blur-sm rounded-3xl flex items-center justify-center border border-white/10">
-                                    <span class="text-8xl font-black text-white/20">{{ $banner->image_icon ?? 'M' }}</span>
-                                </div>
-                                @endif
-                            </div>
+                            @endif
                         </div>
                     </div>
                 </div>
