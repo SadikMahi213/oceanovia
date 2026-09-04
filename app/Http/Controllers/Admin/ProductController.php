@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -133,15 +135,32 @@ class ProductController extends Controller
         // Preserve seller ownership — admin editing should not change vendor
         unset($validated['seller_id']);
 
-        $product->update($validated);
+        // Persist atomically so a mid-update failure can never leave
+        // partial product data behind.
+        try {
+            DB::transaction(function () use ($request, $product, $validated) {
+                $product->update($validated);
 
-        // Persist the Stock Quantity to the product's inventory row
-        // (separate table). Create the row when missing.
-        if ($request->filled('quantity')) {
-            $product->inventory()->updateOrCreate(
-                [],
-                ['stock_quantity' => $request->integer('quantity')]
-            );
+                // Persist the Stock Quantity to the product's inventory row
+                // (separate table). Create the row when missing.
+                if ($request->filled('quantity')) {
+                    $product->inventory()->updateOrCreate(
+                        [],
+                        ['stock_quantity' => $request->integer('quantity')]
+                    );
+                }
+            });
+        } catch (\Throwable $e) {
+            // Log the full technical error server-side; keep the admin inside
+            // the Dashboard -> Products workflow with a clear message instead
+            // of the generic 500 page. No technical details are exposed.
+            Log::error('Admin product update failed', [
+                'product_id' => $product->id,
+                'exception'  => $e,
+            ]);
+
+            return redirect()->route('admin.products.index')
+                ->with('error', 'Product update failed. Please check the information and try again.');
         }
 
         return redirect()->route('admin.products.index')

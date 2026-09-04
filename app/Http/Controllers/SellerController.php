@@ -25,6 +25,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -291,71 +292,105 @@ class SellerController extends Controller
             'images.*'         => ['image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
         ]);
 
-        if ($request->hasFile('images')) {
-            $paths = $product->images ?? [];
-            foreach ($request->file('images') as $image) {
-                $paths[] = $image->store('products', 'public');
-            }
-            $validated['images'] = $paths;
-        }
+        // Persist everything atomically so a mid-update failure can never
+        // leave partial/corrupted product data behind.
+        try {
+            DB::transaction(function () use ($request, $product, $validated) {
+                $data = $validated;
 
-        // The product form submits colors/sizes/tags as comma-separated text
-        // (e.g. "Red, Blue, Green"); convert to arrays for JSON storage.
-        // Only touch fields that were actually submitted.
-        foreach (['colors', 'sizes', 'tags'] as $listField) {
-            if (array_key_exists($listField, $validated)) {
-                $validated[$listField] = $this->parseListInput($validated[$listField]);
-            }
-        }
-
-        $product->update($validated);
-
-        // Persist the Stock Quantity / alert threshold to the product's
-        // inventory row (separate table). Only touch submitted fields so
-        // omitted values never wipe existing stock; create the row when
-        // missing. Variant stock rows are managed separately and untouched.
-        if (array_key_exists('stock_quantity', $validated) || array_key_exists('stock_alert_threshold', $validated)) {
-            $existingInventory = $product->inventory;
-            $product->inventory()->updateOrCreate(
-                [],
-                [
-                    'stock_quantity'        => $validated['stock_quantity'] ?? $existingInventory?->stock_quantity ?? 0,
-                    'stock_alert_threshold' => $validated['stock_alert_threshold'] ?? $existingInventory?->stock_alert_threshold ?? 5,
-                ]
-            );
-        }
-
-        if ($request->has('variants')) {
-            $submittedIds = [];
-            foreach ($request->input('variants') as $variant) {
-                if (isset($variant['id']) && !empty($variant['id'])) {
-                    $pv = ProductVariant::where('id', $variant['id'])
-                        ->where('product_id', $product->id)
-                        ->first();
-                    if ($pv) {
-                        $pv->update([
-                            'sku'            => $variant['sku'] ?? $pv->sku,
-                            'price'          => is_numeric($variant['price'] ?? null) ? $variant['price'] : $pv->price,
-                            'stock_quantity' => is_numeric($variant['stock'] ?? null) ? (int) $variant['stock'] : $pv->stock_quantity,
-                            'color'          => $variant['color'] ?? $pv->color,
-                            'size'           => $variant['size'] ?? $pv->size,
-                            'weight'         => is_numeric($variant['weight'] ?? null) ? $variant['weight'] : $pv->weight,
-                        ]);
-                        $submittedIds[] = $pv->id;
+                if ($request->hasFile('images')) {
+                    $paths = $product->images ?? [];
+                    foreach ($request->file('images') as $image) {
+                        $paths[] = $image->store('products', 'public');
                     }
-                } elseif (!empty(array_filter($variant))) {
-                    $pv = $product->variants()->create([
-                        'sku'            => $variant['sku'] ?? null,
-                        'price'          => is_numeric($variant['price'] ?? null) ? $variant['price'] : null,
-                        'stock_quantity' => is_numeric($variant['stock'] ?? null) ? (int) $variant['stock'] : 0,
-                        'color'          => $variant['color'] ?? null,
-                        'size'           => $variant['size'] ?? null,
-                        'weight'         => is_numeric($variant['weight'] ?? null) ? $variant['weight'] : null,
-                    ]);
-                    $submittedIds[] = $pv->id;
+                    $data['images'] = $paths;
                 }
-            }
-            $product->variants()->whereNotIn('id', $submittedIds)->delete();
+
+                // The product form submits colors/sizes/tags as comma-separated text
+                // (e.g. "Red, Blue, Green"); convert to arrays for JSON storage.
+                // Only touch fields that were actually submitted.
+                foreach (['colors', 'sizes', 'tags'] as $listField) {
+                    if (array_key_exists($listField, $data)) {
+                        $data[$listField] = $this->parseListInput($data[$listField]);
+                    }
+                }
+
+                $product->update($data);
+
+                // Persist the Stock Quantity / alert threshold to the product's
+                // inventory row (separate table). Only touch submitted fields so
+                // omitted values never wipe existing stock; create the row when
+                // missing. Variant stock rows are managed separately and untouched.
+                if (array_key_exists('stock_quantity', $data) || array_key_exists('stock_alert_threshold', $data)) {
+                    $existingInventory = $product->inventory;
+                    $product->inventory()->updateOrCreate(
+                        [],
+                        [
+                            'stock_quantity'        => $data['stock_quantity'] ?? $existingInventory?->stock_quantity ?? 0,
+                            'stock_alert_threshold' => $data['stock_alert_threshold'] ?? $existingInventory?->stock_alert_threshold ?? 5,
+                        ]
+                    );
+                }
+
+                if ($request->has('variants')) {
+                    $submittedIds = [];
+                    foreach ($request->input('variants') as $variant) {
+                        if (isset($variant['id']) && !empty($variant['id'])) {
+                            $pv = ProductVariant::where('id', $variant['id'])
+                                ->where('product_id', $product->id)
+                                ->first();
+                            if ($pv) {
+                                $pv->update([
+                                    'sku'            => $variant['sku'] ?? $pv->sku,
+                                    'price'          => is_numeric($variant['price'] ?? null) ? $variant['price'] : $pv->price,
+                                    'stock_quantity' => is_numeric($variant['stock'] ?? null) ? (int) $variant['stock'] : $pv->stock_quantity,
+                                    'color'          => $variant['color'] ?? $pv->color,
+                                    'size'           => $variant['size'] ?? $pv->size,
+                                    'weight'         => is_numeric($variant['weight'] ?? null) ? $variant['weight'] : $pv->weight,
+                                ]);
+                                $submittedIds[] = $pv->id;
+                            }
+                        } elseif (!empty(array_filter($variant))) {
+                            $variantData = [
+                                'sku'            => $variant['sku'] ?? null,
+                                'price'          => is_numeric($variant['price'] ?? null) ? $variant['price'] : null,
+                                'stock_quantity' => is_numeric($variant['stock'] ?? null) ? (int) $variant['stock'] : 0,
+                                'color'          => $variant['color'] ?? null,
+                                'size'           => $variant['size'] ?? null,
+                                'weight'         => is_numeric($variant['weight'] ?? null) ? $variant['weight'] : null,
+                            ];
+                            // Guard against re-inserting an SKU that already exists
+                            // for this product (variant rows re-submitted without
+                            // their id, or a duplicated row): update the existing
+                            // row instead of violating the unique product/sku
+                            // constraint (previously an unhandled 500 error).
+                            $existingBySku = isset($variant['sku']) && $variant['sku'] !== ''
+                                ? $product->variants()->where('sku', $variant['sku'])->first()
+                                : null;
+                            if ($existingBySku) {
+                                $existingBySku->update($variantData);
+                                $submittedIds[] = $existingBySku->id;
+                            } else {
+                                $pv = $product->variants()->create($variantData);
+                                $submittedIds[] = $pv->id;
+                            }
+                        }
+                    }
+                    $product->variants()->whereNotIn('id', $submittedIds)->delete();
+                }
+            });
+        } catch (\Throwable $e) {
+            // Log the full technical error server-side; keep the seller inside
+            // the Dashboard -> Products workflow with a clear message instead
+            // of the generic 500 page. No technical details are exposed.
+            Log::error('Seller product update failed', [
+                'product_id' => $product->id,
+                'seller_id'  => auth()->id(),
+                'exception'  => $e,
+            ]);
+
+            return redirect()->route('seller.products.index')
+                ->with('error', 'Product update failed. Please check the information and try again.');
         }
 
         return redirect()->route('seller.products.index')

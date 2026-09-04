@@ -229,6 +229,7 @@ $title = $edit ? 'Edit Product' : 'Add Product';
                             <div class="p-5">
                                 <template x-for="(v, i) in variants" :key="i">
                                     <div class="grid grid-cols-6 gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl mb-2 items-end">
+                                        <input type="hidden" :name="`variants[${i}][id]`" x-model="v.id">
                                         <div>
                                             <label class="text-xs text-gray-500">SKU</label>
                                             <input type="text" :name="`variants[${i}][sku]`" x-model="v.sku" class="w-full px-2 py-1.5 text-sm border rounded-lg dark:bg-gray-700 dark:border-gray-600">
