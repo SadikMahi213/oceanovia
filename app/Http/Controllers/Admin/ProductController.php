@@ -88,8 +88,13 @@ class ProductController extends Controller
 
         $product = Product::create($validated);
 
-        if ($request->filled('quantity') && $product->inventory) {
-            $product->inventory()->update(['stock_quantity' => $request->integer('quantity')]);
+        // Persist the Stock Quantity to the product's inventory row
+        // (separate table). Create the row when missing.
+        if ($request->filled('quantity')) {
+            $product->inventory()->updateOrCreate(
+                [],
+                ['stock_quantity' => $request->integer('quantity')]
+            );
         }
 
         return redirect()->route('admin.products.index')
@@ -130,8 +135,13 @@ class ProductController extends Controller
 
         $product->update($validated);
 
-        if ($request->filled('quantity') && $product->inventory) {
-            $product->inventory()->update(['stock_quantity' => $request->integer('quantity')]);
+        // Persist the Stock Quantity to the product's inventory row
+        // (separate table). Create the row when missing.
+        if ($request->filled('quantity')) {
+            $product->inventory()->updateOrCreate(
+                [],
+                ['stock_quantity' => $request->integer('quantity')]
+            );
         }
 
         return redirect()->route('admin.products.index')

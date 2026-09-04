@@ -184,11 +184,13 @@ class SellerController extends Controller
             'width'            => ['nullable', 'numeric', 'min:0'],
             'length'           => ['nullable', 'numeric', 'min:0'],
             'material'         => ['nullable', 'string', 'max:255'],
-            'colors'           => ['nullable', 'array'],
-            'sizes'            => ['nullable', 'array'],
-            'tags'             => ['nullable', 'array'],
+            'colors'           => ['nullable', 'string', 'max:2000'],
+            'sizes'            => ['nullable', 'string', 'max:2000'],
+            'tags'             => ['nullable', 'string', 'max:2000'],
             'status'           => ['required', 'in:published,draft,archived'],
             'is_featured'      => ['boolean'],
+            'stock_quantity'   => ['nullable', 'integer', 'min:0'],
+            'stock_alert_threshold' => ['nullable', 'integer', 'min:0'],
             'meta_title'       => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'images'           => ['nullable', 'array'],
@@ -197,6 +199,14 @@ class SellerController extends Controller
 
         $validated['seller_id'] = auth()->id();
         $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(6);
+
+        // The product form submits colors/sizes/tags as comma-separated text
+        // (e.g. "Red, Blue, Green"); convert to arrays for JSON storage.
+        foreach (['colors', 'sizes', 'tags'] as $listField) {
+            if (array_key_exists($listField, $validated)) {
+                $validated[$listField] = $this->parseListInput($validated[$listField]);
+            }
+        }
 
         if ($request->hasFile('images')) {
             $paths = [];
@@ -207,6 +217,16 @@ class SellerController extends Controller
         }
 
         $product = Product::create($validated);
+
+        // Persist the Stock Quantity / alert threshold to the product's
+        // inventory row (separate table). Create it when missing.
+        $product->inventory()->updateOrCreate(
+            [],
+            [
+                'stock_quantity'        => $validated['stock_quantity'] ?? 0,
+                'stock_alert_threshold' => $validated['stock_alert_threshold'] ?? 5,
+            ]
+        );
 
         if ($request->filled('variants')) {
             foreach ($request->input('variants') as $variant) {
@@ -258,11 +278,13 @@ class SellerController extends Controller
             'width'            => ['nullable', 'numeric', 'min:0'],
             'length'           => ['nullable', 'numeric', 'min:0'],
             'material'         => ['nullable', 'string', 'max:255'],
-            'colors'           => ['nullable', 'array'],
-            'sizes'            => ['nullable', 'array'],
-            'tags'             => ['nullable', 'array'],
+            'colors'           => ['nullable', 'string', 'max:2000'],
+            'sizes'            => ['nullable', 'string', 'max:2000'],
+            'tags'             => ['nullable', 'string', 'max:2000'],
             'status'           => ['required', 'in:published,draft,archived'],
             'is_featured'      => ['boolean'],
+            'stock_quantity'   => ['nullable', 'integer', 'min:0'],
+            'stock_alert_threshold' => ['nullable', 'integer', 'min:0'],
             'meta_title'       => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'images'           => ['nullable', 'array'],
@@ -277,7 +299,31 @@ class SellerController extends Controller
             $validated['images'] = $paths;
         }
 
+        // The product form submits colors/sizes/tags as comma-separated text
+        // (e.g. "Red, Blue, Green"); convert to arrays for JSON storage.
+        // Only touch fields that were actually submitted.
+        foreach (['colors', 'sizes', 'tags'] as $listField) {
+            if (array_key_exists($listField, $validated)) {
+                $validated[$listField] = $this->parseListInput($validated[$listField]);
+            }
+        }
+
         $product->update($validated);
+
+        // Persist the Stock Quantity / alert threshold to the product's
+        // inventory row (separate table). Only touch submitted fields so
+        // omitted values never wipe existing stock; create the row when
+        // missing. Variant stock rows are managed separately and untouched.
+        if (array_key_exists('stock_quantity', $validated) || array_key_exists('stock_alert_threshold', $validated)) {
+            $existingInventory = $product->inventory;
+            $product->inventory()->updateOrCreate(
+                [],
+                [
+                    'stock_quantity'        => $validated['stock_quantity'] ?? $existingInventory?->stock_quantity ?? 0,
+                    'stock_alert_threshold' => $validated['stock_alert_threshold'] ?? $existingInventory?->stock_alert_threshold ?? 5,
+                ]
+            );
+        }
 
         if ($request->has('variants')) {
             $submittedIds = [];
@@ -314,6 +360,33 @@ class SellerController extends Controller
 
         return redirect()->route('seller.products.index')
             ->with('success', 'Product updated successfully.');
+    }
+
+    /**
+     * Convert a comma-separated text input ("Red, Blue, Green") into a clean
+     * array (["Red", "Blue", "Green"]) for JSON storage.
+     *
+     * Trims whitespace and drops empty items; empty input returns null so
+     * nullable fields stay null. Arrays pass through cleaned (defensive).
+     */
+    private function parseListInput(mixed $value): ?array
+    {
+        if (is_array($value)) {
+            $items = $value;
+        } elseif (is_string($value)) {
+            $items = explode(',', $value);
+        } else {
+            return null;
+        }
+
+        $items = array_values(
+            array_filter(
+                array_map('trim', $items),
+                fn ($item) => $item !== '' && $item !== null
+            )
+        );
+
+        return $items === [] ? null : $items;
     }
 
     public function productDestroy(Product $product): RedirectResponse
