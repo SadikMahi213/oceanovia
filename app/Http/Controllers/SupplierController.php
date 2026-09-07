@@ -485,12 +485,21 @@ class SupplierController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'countries' => ['nullable', 'array'],
-            'states' => ['nullable', 'array'],
-            'cities' => ['nullable', 'array'],
-            'zip_codes' => ['nullable', 'array'],
+            'countries' => ['nullable', 'string', 'max:2000'],
+            'states' => ['nullable', 'string', 'max:2000'],
+            'cities' => ['nullable', 'string', 'max:2000'],
+            'zip_codes' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+
+        // The zone form submits countries/states/cities/zip_codes as
+        // comma-separated text (e.g. "US, CA, MX"); convert to arrays for
+        // JSON storage. Only touch fields actually submitted.
+        foreach (['countries', 'states', 'cities', 'zip_codes'] as $listField) {
+            if (array_key_exists($listField, $validated)) {
+                $validated[$listField] = $this->parseListInput($validated[$listField]);
+            }
+        }
 
         $validated['is_active'] = $request->boolean('is_active');
         $validated['supplier_id'] = auth()->id();
@@ -506,19 +515,56 @@ class SupplierController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'countries' => ['nullable', 'array'],
-            'states' => ['nullable', 'array'],
-            'cities' => ['nullable', 'array'],
-            'zip_codes' => ['nullable', 'array'],
+            // "sometimes" so the card's active-toggle (which submits only
+            // is_active) works; the edit form always sends name, keeping it
+            // required there in practice.
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'countries' => ['nullable', 'string', 'max:2000'],
+            'states' => ['nullable', 'string', 'max:2000'],
+            'cities' => ['nullable', 'string', 'max:2000'],
+            'zip_codes' => ['nullable', 'string', 'max:2000'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+
+        // Same comma-separated conversion as store; only submitted fields.
+        foreach (['countries', 'states', 'cities', 'zip_codes'] as $listField) {
+            if (array_key_exists($listField, $validated)) {
+                $validated[$listField] = $this->parseListInput($validated[$listField]);
+            }
+        }
 
         $validated['is_active'] = $request->boolean('is_active');
 
         $zone->update($validated);
 
         return redirect()->back()->with('success', 'Shipping zone updated.');
+    }
+
+    /**
+     * Convert a comma-separated text input ("US, CA, MX") into a clean
+     * array (["US", "CA", "MX"]) for JSON storage.
+     *
+     * Trims whitespace and drops empty items; empty input returns null so
+     * nullable fields stay null. Arrays pass through cleaned (defensive).
+     */
+    private function parseListInput(mixed $value): ?array
+    {
+        if (is_array($value)) {
+            $items = $value;
+        } elseif (is_string($value)) {
+            $items = explode(',', $value);
+        } else {
+            return null;
+        }
+
+        $items = array_values(
+            array_filter(
+                array_map('trim', $items),
+                fn ($item) => $item !== '' && $item !== null
+            )
+        );
+
+        return $items === [] ? null : $items;
     }
 
     public function shippingZonesDestroy(SupplierShippingZone $zone): RedirectResponse
