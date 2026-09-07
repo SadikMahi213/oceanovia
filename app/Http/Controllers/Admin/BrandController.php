@@ -42,6 +42,11 @@ class BrandController extends Controller
 
         $validated['is_active'] = $request->boolean('is_active') ?? 0;
 
+        // sort_order is optional in the form, but brands.sort_order is NOT
+        // NULL-able: normalize an empty value to 0 instead of inserting NULL
+        // (previously an unhandled 500 integrity-constraint violation).
+        $validated['sort_order'] = $validated['sort_order'] ?? 0;
+
         if ($request->hasFile('logo')) {
             $validated['logo'] = $request->file('logo')->store('brands', 'public');
         }
@@ -70,6 +75,11 @@ class BrandController extends Controller
         ]);
 
         $validated['is_active'] = $request->boolean('is_active') ?? $brand->is_active;
+
+        // sort_order is optional in the form, but brands.sort_order is NOT
+        // NULL-able: normalize an empty value to 0 instead of writing NULL
+        // (previously an unhandled 500 integrity-constraint violation).
+        $validated['sort_order'] = $validated['sort_order'] ?? 0;
 
         if ($request->hasFile('logo')) {
             $validated['logo'] = $request->file('logo')->store('brands', 'public');
