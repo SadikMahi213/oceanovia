@@ -68,13 +68,7 @@
                                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Email Verification</h2>
                             </div>
                             <div class="p-5">
-                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Your email address is not verified. Please check your inbox for the verification link.</p>
-                                <form method="POST" action="{{ route('verification.send') }}">
-                                    @csrf
-                                    <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 bg-market-600 hover:bg-market-700 text-white text-sm font-medium rounded-xl transition-colors">
-                                        Resend Verification Email
-                                    </button>
-                                </form>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Your email address is not verified. Email verification messages are currently unavailable.</p>
                             </div>
                         </div>
                     @endif

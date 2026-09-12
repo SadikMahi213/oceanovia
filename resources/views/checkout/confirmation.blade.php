@@ -20,7 +20,6 @@
 
                 {{-- Order Summary (minimal) --}}
                 <div class="border-t border-gray-100 dark:border-gray-700 pt-6 mb-8">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">A confirmation email has been sent to <span class="font-medium text-gray-900 dark:text-white">{{ $order->user->email ?? Auth::user()->email }}</span></p>
                     <p class="text-sm text-gray-500 dark:text-gray-400">You can track your order status from your orders page.</p>
                 </div>
 

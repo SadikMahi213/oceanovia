@@ -166,6 +166,27 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * External email delivery has been removed from this application, so
+     * this is intentionally a no-op (no verification email is ever sent).
+     * Users keep their real verification state; nothing is falsely marked
+     * as verified.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        // No external email provider in use.
+    }
+
+    /**
+     * External email delivery has been removed from this application, so
+     * this is intentionally a no-op (no password-reset email is ever sent).
+     * See PasswordResetLinkController: reset links via email are unavailable.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        // No external email provider in use.
+    }
+
+    /**
      * Get the avatar URL.
      */
     public function getAvatarUrlAttribute(): ?string
