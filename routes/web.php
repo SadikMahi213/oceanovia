@@ -51,7 +51,7 @@ Route::prefix('products')->name('products.')->group(function () {
 
 // ─── Product Reviews ────────────────────────────────────────────────────
 Route::post('/products/{product}/reviews', [ReviewController::class, 'store'])
-    ->middleware(['auth', 'verified', 'throttle:reviews'])
+    ->middleware(['auth', 'throttle:reviews'])
     ->name('products.reviews.store');
 
 // ─── Categories ─────────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ Route::prefix('cart')->name('cart.')->group(function () {
 });
 
 // ─── Checkout ───────────────────────────────────────────────────────────
-Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'verified'])->group(function () {
+Route::prefix('checkout')->name('checkout.')->middleware(['auth'])->group(function () {
     Route::get('/', [CheckoutController::class, 'index'])->name('index');
     Route::post('/', [CheckoutController::class, 'store'])->middleware('throttle:checkout')->name('store');
     Route::get('/stripe/{order}', [CheckoutController::class, 'stripe'])->name('stripe');
@@ -82,13 +82,13 @@ Route::prefix('checkout')->name('checkout.')->middleware(['auth', 'verified'])->
 Route::post('/stripe/webhook', [CheckoutController::class, 'webhook'])->name('stripe.webhook');
 
 // ─── Refunds (Customer) ──────────────────────────────────────────────────
-Route::prefix('refunds')->name('refunds.')->middleware(['auth', 'verified', 'throttle:checkout'])->group(function () {
+Route::prefix('refunds')->name('refunds.')->middleware(['auth', 'throttle:checkout'])->group(function () {
     Route::get('/create/{order}', [App\Http\Controllers\RefundController::class, 'create'])->name('create');
     Route::post('/{order}', [App\Http\Controllers\RefundController::class, 'store'])->name('store');
 });
 
 // ─── Admin Routes ────────────────────────────────────────────────────────
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified', 'role:admin'])->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
 
     // Products
@@ -173,7 +173,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified', 'role:ad
 
 
 // ─── Orders ─────────────────────────────────────────────────────────────
-Route::prefix('orders')->name('orders.')->middleware(['auth', 'verified'])->group(function () {
+Route::prefix('orders')->name('orders.')->middleware(['auth'])->group(function () {
     Route::get('/', [OrderController::class, 'index'])->name('index');
     Route::get('/{id}', [OrderController::class, 'show'])->name('show');
 });
@@ -185,13 +185,13 @@ Route::prefix('wishlist')->name('wishlist.')->middleware('auth')->group(function
 });
 
 // ─── Become Seller / Supplier (public auth) ─────────────────────────────
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::post('/become-seller', [App\Http\Controllers\SellerController::class, 'becomeSeller'])->name('become.seller');
     Route::post('/become-supplier', [App\Http\Controllers\SupplierController::class, 'becomeSupplier'])->name('become.supplier');
 });
 
 // ─── Seller Dashboard ───────────────────────────────────────────────────
-Route::prefix('seller')->name('seller.')->middleware(['auth', 'verified', 'role:seller'])->group(function () {
+Route::prefix('seller')->name('seller.')->middleware(['auth', 'role:seller'])->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\SellerController::class, 'dashboard'])->name('dashboard');
     Route::get('/products', [App\Http\Controllers\SellerController::class, 'products'])->name('products.index');
     Route::get('/products/create', [App\Http\Controllers\SellerController::class, 'productCreate'])->name('products.create');
@@ -242,7 +242,7 @@ Route::prefix('seller')->name('seller.')->middleware(['auth', 'verified', 'role:
 });
 
 // ─── Supplier Dashboard ─────────────────────────────────────────────────
-Route::prefix('supplier')->name('supplier.')->middleware(['auth', 'verified', 'role:supplier'])->group(function () {
+Route::prefix('supplier')->name('supplier.')->middleware(['auth', 'role:supplier'])->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\SupplierController::class, 'dashboard'])->name('dashboard');
 
     // ── Profile & KYC ──────────────────────────────────────────────────
@@ -331,7 +331,7 @@ Route::prefix('supplier')->name('supplier.')->middleware(['auth', 'verified', 'r
 Route::post('/shipping/rates', [App\Http\Controllers\ShippingController::class, 'rates'])->name('shipping.rates');
 
 // ─── Customer Panel / Account ─────────────────────────────────────────
-Route::prefix('account')->name('customer.')->middleware(['auth', 'verified'])->group(function () {
+Route::prefix('account')->name('customer.')->middleware(['auth'])->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\CustomerController::class, 'dashboard'])->name('dashboard');
     Route::get('/profile', [App\Http\Controllers\CustomerController::class, 'profile'])->name('profile');
     Route::put('/profile', [App\Http\Controllers\CustomerController::class, 'profileUpdate'])->name('profile.update');
@@ -381,7 +381,7 @@ Route::prefix('account')->name('customer.')->middleware(['auth', 'verified'])->g
 
 // ─── Dashboard (Customer legacy shortcut) ──────────────────────────────
 Route::get('/dashboard', [App\Http\Controllers\CustomerController::class, 'dashboard'])
-    ->middleware(['auth', 'verified'])->name('dashboard');
+    ->middleware(['auth'])->name('dashboard');
 
 // ─── Auth Routes (Breeze) ───────────────────────────────────────────────
 Route::middleware('auth')->group(function () {
