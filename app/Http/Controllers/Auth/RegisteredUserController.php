@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -54,7 +55,20 @@ class RegisteredUserController extends Controller
         // Assign the corresponding Spatie role
         $user->assignRole($request->role_type);
 
-        event(new Registered($user));
+        // The Registered event triggers the verification email synchronously
+        // via SMTP. A mail outage or bad SMTP credentials must never fail
+        // the registration itself (previously an unhandled 500 after the
+        // user row was already created). Log it; the user can re-request
+        // verification from the verify-email notice (resend route exists).
+        try {
+            event(new Registered($user));
+        } catch (\Throwable $e) {
+            Log::warning('Registration verification email failed to send', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'exception' => $e,
+            ]);
+        }
 
         Auth::login($user);
 
