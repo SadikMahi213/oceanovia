@@ -62,8 +62,8 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function casts(): array
     {
         return [
-            'email_verified_at'       => 'datetime',
-            'password'                => 'hashed',
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
             'notification_preferences' => 'array',
         ];
     }
@@ -148,7 +148,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getFullNameAttribute(): string
     {
         return $this->lastname
-            ? trim($this->name . ' ' . $this->lastname)
+            ? trim($this->name.' '.$this->lastname)
             : $this->name;
     }
 
@@ -158,10 +158,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getDashboardRoute(): string
     {
         return match ($this->role_type) {
-            'admin'    => '/admin/dashboard',
-            'seller'   => '/seller/dashboard',
+            'admin' => '/admin/dashboard',
+            'seller' => '/seller/dashboard',
             'supplier' => '/supplier/dashboard',
-            default    => '/dashboard',
+            default => '/dashboard',
         };
     }
 
@@ -177,22 +177,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * External email delivery has been removed from this application, so
-     * this is intentionally a no-op (no password-reset email is ever sent).
-     * See PasswordResetLinkController: reset links via email are unavailable.
-     */
-    public function sendPasswordResetNotification($token): void
-    {
-        // No external email provider in use.
-    }
-
-    /**
      * Get the avatar URL.
      */
     public function getAvatarUrlAttribute(): ?string
     {
         return $this->avatar
-            ? asset('storage/' . $this->avatar)
+            ? asset('storage/'.$this->avatar)
             : asset('images/no_avatar.png');
     }
 
