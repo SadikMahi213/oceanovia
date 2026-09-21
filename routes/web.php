@@ -111,6 +111,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::resource('contact-messages', App\Http\Controllers\Admin\ContactMessageController::class)->only(['index', 'show']);
     Route::patch('contact-messages/{contactMessage}/read', [App\Http\Controllers\Admin\ContactMessageController::class, 'markRead'])->name('contact-messages.read');
 
+    // Email Sender (admin only; this group is behind auth + role:admin)
+    Route::get('emails', [App\Http\Controllers\Admin\EmailSenderController::class, 'index'])->name('emails.index');
+    Route::post('emails', [App\Http\Controllers\Admin\EmailSenderController::class, 'store'])->name('emails.send');
+
     // Orders
     Route::get('orders', [App\Http\Controllers\Admin\OrderController::class, 'index'])->name('orders.index');
     Route::get('orders/{order}', [App\Http\Controllers\Admin\OrderController::class, 'show'])->name('orders.show');
