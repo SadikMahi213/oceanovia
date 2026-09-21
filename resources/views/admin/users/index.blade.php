@@ -39,6 +39,7 @@
                                         <th class="px-5 py-3">
                                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'email', 'dir' => ($sortField === 'email' && $sortDir === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-900 dark:hover:text-white">Email</a>
                                         </th>
+                                        <th class="px-5 py-3">Phone</th>
                                         <th class="px-5 py-3">
                                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'role_type', 'dir' => ($sortField === 'role_type' && $sortDir === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center gap-1 hover:text-gray-900 dark:hover:text-white">Role</a>
                                         </th>
@@ -49,6 +50,7 @@
                                         <th class="px-5 py-3 text-right">
                                             <a href="{{ request()->fullUrlWithQuery(['sort' => 'created_at', 'dir' => ($sortField === 'created_at' && $sortDir === 'asc') ? 'desc' : 'asc']) }}" class="flex items-center justify-end gap-1 hover:text-gray-900 dark:hover:text-white">Joined</a>
                                         </th>
+                                        <th class="px-5 py-3 text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -58,12 +60,13 @@
                                                 <div class="flex items-center gap-3">
                                                     <div class="w-9 h-9 rounded-full bg-gradient-to-br from-market-500 to-market-700 flex items-center justify-center text-white font-bold text-sm shrink-0">{{ substr($user->name, 0, 1) }}</div>
                                                     <div>
-                                                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $user->name }}</p>
-                                                        <p class="text-xs text-gray-500">{{ '@'.$user->username }}</p>
+                                                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $user->full_name }}</p>
+                                                        <p class="text-xs text-gray-500">@<span>{{ $user->username }}</span></p>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $user->email }}</td>
+                                            <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $user->phone ?? '—' }}</td>
                                             <td class="px-5 py-4">
                                                 <x-inline-edit model="User" :id="$user->id" field="role_type" :value="$user->role_type" type="select" :options="['admin' => 'Admin', 'seller' => 'Seller', 'supplier' => 'Supplier', 'customer' => 'Customer']" />
                                             </td>
@@ -78,9 +81,12 @@
                                                 @endif
                                             </td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400 text-right">{{ $user->created_at->format('M d, Y') }}</td>
+                                            <td class="px-5 py-4 text-right">
+                                                <a href="{{ route('admin.users.show', $user) }}" class="inline-flex items-center gap-1 text-sm font-medium text-market-600 hover:text-market-700 dark:text-market-400 dark:hover:text-market-300">View</a>
+                                            </td>
                                         </tr>
                                     @empty
-                                        <tr><td colspan="6" class="px-5 py-12 text-center text-sm text-gray-500">No users found.</td></tr>
+                                        <tr><td colspan="8" class="px-5 py-12 text-center text-sm text-gray-500">No users found.</td></tr>
                                     @endforelse
                                 </tbody>
                             </table>

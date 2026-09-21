@@ -25,18 +25,25 @@ class UserController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
         $sortField = $request->get('sort', 'created_at');
         $sortDir = $request->get('dir', 'desc');
         $allowed = ['name', 'email', 'role_type', 'status', 'created_at'];
-        if (!in_array($sortField, $allowed)) $sortField = 'created_at';
+        if (! in_array($sortField, $allowed)) {
+            $sortField = 'created_at';
+        }
         $query->orderBy($sortField, $sortDir === 'asc' ? 'asc' : 'desc');
 
         $users = $query->paginate(15);
 
         return view('admin.users.index', compact('users', 'sortField', 'sortDir'));
+    }
+
+    public function show(User $user): View
+    {
+        return view('admin.users.show', compact('user'));
     }
 }
