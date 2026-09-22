@@ -2,7 +2,11 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -18,7 +22,7 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register(): void
     {
-        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+        $this->seed(RolesAndPermissionsSeeder::class);
 
         $response = $this->post('/register', [
             'name' => 'Test User',
@@ -30,5 +34,24 @@ class RegistrationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
+    }
+
+    public function test_verification_email_is_sent_upon_registration(): void
+    {
+        Notification::fake();
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $this->post('/register', [
+            'name' => 'Test User',
+            'email' => 'verify@example.com',
+            'password' => 'Password@123',
+            'password_confirmation' => 'Password@123',
+            'role_type' => 'customer',
+        ]);
+
+        $user = User::where('email', 'verify@example.com')->first();
+
+        Notification::assertSentTo($user, VerifyEmail::class);
+        $this->assertFalse($user->hasVerifiedEmail());
     }
 }

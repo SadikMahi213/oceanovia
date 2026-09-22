@@ -68,7 +68,14 @@
                                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Email Verification</h2>
                             </div>
                             <div class="p-5">
-                                <p class="text-sm text-gray-500 dark:text-gray-400">Your email address is not verified. Email verification messages are currently unavailable.</p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Your email address is not verified. We can send you a verification link by email.</p>
+                                @if(session('status') == 'verification-link-sent')
+                                    <p class="text-sm font-medium text-green-600 dark:text-green-400 mb-3">A new verification link has been sent to your email address.</p>
+                                @endif
+                                <form method="POST" action="{{ route('verification.send') }}">
+                                    @csrf
+                                    <x-primary-button>{{ __('Send Verification Email') }}</x-primary-button>
+                                </form>
                             </div>
                         </div>
                     @endif
