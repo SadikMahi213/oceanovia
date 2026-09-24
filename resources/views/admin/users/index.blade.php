@@ -82,8 +82,41 @@
                                             </td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400 text-right">{{ $user->created_at->format('M d, Y') }}</td>
                                             <td class="px-5 py-4 text-right">
-                                                <div class="flex items-center justify-end gap-3">
+                                                <div class="flex items-center justify-end gap-3 flex-wrap">
                                                     <a href="{{ route('admin.users.show', $user) }}" class="inline-flex items-center gap-1 text-sm font-medium text-market-600 hover:text-market-700 dark:text-market-400 dark:hover:text-market-300">View</a>
+                                                    @if(!$user->email_verified_at)
+                                                        <form method="POST" action="{{ route('admin.users.verify', $user) }}" class="inline">
+                                                            @csrf
+                                                            @method('PATCH')
+                                                            <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">Verify</button>
+                                                        </form>
+                                                    @endif
+                                                    @if($user->id !== auth()->id())
+                                                        @if($user->status === 'active')
+                                                            <form method="POST" action="{{ route('admin.users.update-status', $user) }}" class="inline" data-user="{{ addslashes($user->full_name) }}" onsubmit="return confirmAccountAction(this, 'suspend')">
+                                                                @csrf
+                                                                @method('PATCH')
+                                                                <input type="hidden" name="status" value="suspended">
+                                                                <input type="hidden" name="reason" value="">
+                                                                <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">Suspend</button>
+                                                            </form>
+                                                            <form method="POST" action="{{ route('admin.users.update-status', $user) }}" class="inline" data-user="{{ addslashes($user->full_name) }}" onsubmit="return confirmAccountAction(this, 'deactivate')">
+                                                                @csrf
+                                                                @method('PATCH')
+                                                                <input type="hidden" name="status" value="inactive">
+                                                                <input type="hidden" name="reason" value="">
+                                                                <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300">Deactivate</button>
+                                                            </form>
+                                                        @else
+                                                            <form method="POST" action="{{ route('admin.users.update-status', $user) }}" class="inline" data-user="{{ addslashes($user->full_name) }}" onsubmit="return confirmAccountAction(this, 'reactivate')">
+                                                                @csrf
+                                                                @method('PATCH')
+                                                                <input type="hidden" name="status" value="active">
+                                                                <input type="hidden" name="reason" value="">
+                                                                <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">Activate</button>
+                                                            </form>
+                                                        @endif
+                                                    @endif
                                                     @if($user->id !== auth()->id())
                                                         <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline" onsubmit="return confirmDeleteUser(this, 'Delete user {{ addslashes($user->full_name) }} ({{ addslashes($user->email) }})?\n\nTheir account will be disabled. Orders, payouts, KYC and history records are preserved.')">
                                                             @csrf
@@ -118,6 +151,34 @@
             if (button) {
                 button.disabled = true;
                 button.innerHTML = 'Deleting…';
+            }
+            return true;
+        }
+
+        function confirmAccountAction(form, actionLabel, reasonSelector) {
+            if (!confirm('Are you sure you want to ' + actionLabel + ' ' + (form.dataset.user || 'this user') + '?')) {
+                return false;
+            }
+            var reason = '';
+            if (reasonSelector) {
+                var reasonEl = document.querySelector(reasonSelector);
+                if (reasonEl) {
+                    reason = reasonEl.value;
+                }
+            } else {
+                reason = prompt('Reason (optional):', '');
+                if (reason === null) {
+                    return false;
+                }
+            }
+            var reasonInput = form.querySelector('input[name="reason"]');
+            if (reasonInput) {
+                reasonInput.value = reason;
+            }
+            var button = form.querySelector('button[type="submit"]');
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = 'Saving…';
             }
             return true;
         }

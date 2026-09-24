@@ -63,14 +63,14 @@ class InlineEditController extends Controller
     {
         $validated = $request->validate([
             'model' => 'required|string',
-            'id'    => 'required|integer',
+            'id' => 'required|integer',
             'field' => 'required|string',
             'value' => 'nullable',
         ]);
 
         $model = $validated['model'];
 
-        if (!isset(static::MODELS[$model]) || !isset(static::ALLOWED[$model][$validated['field']])) {
+        if (! isset(static::MODELS[$model]) || ! isset(static::ALLOWED[$model][$validated['field']])) {
             return response()->json(['error' => 'This field cannot be edited.'], 422);
         }
 
@@ -82,13 +82,13 @@ class InlineEditController extends Controller
                 $value = filter_var($value, FILTER_VALIDATE_BOOLEAN);
                 break;
             case 'integer':
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     return response()->json(['error' => 'Invalid value.'], 422);
                 }
                 $value = (int) $value;
                 break;
             case 'numeric':
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     return response()->json(['error' => 'Invalid value.'], 422);
                 }
                 if (isset($rules['min']) && $value < $rules['min']) {
@@ -104,7 +104,7 @@ class InlineEditController extends Controller
                 if (isset($rules['max']) && mb_strlen($value) > $rules['max']) {
                     return response()->json(['error' => 'Value is too long.'], 422);
                 }
-                if (isset($rules['values']) && !in_array($value, $rules['values'], true)) {
+                if (isset($rules['values']) && ! in_array($value, $rules['values'], true)) {
                     return response()->json(['error' => 'Invalid value.'], 422);
                 }
                 break;
@@ -113,15 +113,23 @@ class InlineEditController extends Controller
         $modelClass = static::MODELS[$model];
         $record = $modelClass::find($validated['id']);
 
-        if (!$record) {
+        if (! $record) {
             return response()->json(['error' => 'Record not found.'], 404);
+        }
+
+        // Prevent an admin from changing their own status/role and locking
+        // themselves out or demoting themself out of the admin panel.
+        if ($model === 'User'
+            && in_array($validated['field'], ['status', 'role_type'], true)
+            && (int) $record->getKey() === (int) $request->user()->id) {
+            return response()->json(['error' => 'You cannot change your own account status or role.'], 422);
         }
 
         $record->update([$validated['field'] => $value]);
 
         return response()->json([
             'success' => true,
-            'value'   => $record->fresh()->{$validated['field']},
+            'value' => $record->fresh()->{$validated['field']},
             'message' => 'Updated successfully.',
         ]);
     }

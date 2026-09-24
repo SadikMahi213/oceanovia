@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Coupon;
 use App\Models\Order;
-use App\Models\SellerPayout;
+use App\Models\Product;
 use App\Models\Refund;
 use App\Models\Review;
-use App\Models\Product;
+use App\Models\SellerPayout;
 use App\Models\User;
-use App\Models\Coupon;
+use App\Models\UserNotification;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -35,7 +36,7 @@ class DashboardController extends Controller
         // Products
         $totalProducts = Product::count();
         $publishedProducts = Product::published()->count();
-        $outOfStockProductsCount = Product::whereHas('inventory', fn($q) => $q->where('stock_quantity', 0))->count();
+        $outOfStockProductsCount = Product::whereHas('inventory', fn ($q) => $q->where('stock_quantity', 0))->count();
         $pendingReviews = Review::whereNull('is_approved')->count();
 
         // Users
@@ -53,6 +54,17 @@ class DashboardController extends Controller
         $recentOrders = Order::with('user')->latest()->take(8)->get();
         $recentRefunds = Refund::with('user', 'order')->latest()->take(5)->get();
         $recentReviews = Review::with('user', 'product')->latest()->take(5)->get();
+        $unreadNotificationsCount = UserNotification::query()
+            ->where('notifiable_type', User::class)
+            ->where('notifiable_id', auth()->id())
+            ->unread()
+            ->count();
+        $recentNotifications = UserNotification::query()
+            ->where('notifiable_type', User::class)
+            ->where('notifiable_id', auth()->id())
+            ->latest()
+            ->take(6)
+            ->get();
 
         // Top sellers
         $topSellers = SellerPayout::selectRaw('seller_id, SUM(amount) as total_paid')
@@ -85,6 +97,8 @@ class DashboardController extends Controller
             'recentOrders',
             'recentRefunds',
             'recentReviews',
+            'unreadNotificationsCount',
+            'recentNotifications',
             'topSellers',
         ));
     }

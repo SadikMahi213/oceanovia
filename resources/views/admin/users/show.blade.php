@@ -47,6 +47,70 @@
                         </div>
                     </div>
 
+                    {{-- Account controls (verify / suspend / deactivate / activate) --}}
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 mb-6">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">Account controls</h3>
+                        <div class="flex flex-wrap items-center gap-4">
+                            {{-- Verification --}}
+                            <div class="flex items-center gap-3">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">Verification:</span>
+                                @if($user->email_verified_at)
+                                    <span class="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2.5 py-1 rounded-full">Verified</span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2.5 py-1 rounded-full">Pending</span>
+                                    <form method="POST" action="{{ route('admin.users.verify', $user) }}" class="inline">
+                                        @csrf
+                                        @method('PATCH')
+                                        <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors">Verify now</button>
+                                    </form>
+                                @endif
+                            </div>
+
+                            {{-- Status --}}
+                            <div class="flex items-center gap-3">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">Account status:</span>
+                                @php
+                                    $statusBadge = match($user->status) {
+                                        'active' => 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+                                        'inactive' => 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
+                                        'suspended' => 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
+                                        default => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                                    };
+                                @endphp
+                                <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full {{ $statusBadge }}">{{ ucfirst($user->status) }}</span>
+                            </div>
+
+                            @if($user->id !== auth()->id() && $user->status === 'active')
+                                <form method="POST" action="{{ route('admin.users.update-status', $user) }}" class="inline" onsubmit="return confirmAccountAction(this, 'suspend', '#status-reason-input')">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="status" value="suspended">
+                                    <input type="hidden" name="reason" value="">
+                                    <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">Suspend account</button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.users.update-status', $user) }}" class="inline" onsubmit="return confirmAccountAction(this, 'deactivate', '#status-reason-input')">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="status" value="inactive">
+                                    <input type="hidden" name="reason" value="">
+                                    <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors">Deactivate account</button>
+                                </form>
+                            @elseif($user->id !== auth()->id() && $user->status !== 'active')
+                                <form method="POST" action="{{ route('admin.users.update-status', $user) }}" class="inline" onsubmit="return confirmAccountAction(this, 'reactivate', '#status-reason-input')">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="status" value="active">
+                                    <input type="hidden" name="reason" value="">
+                                    <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors">Reactivate account</button>
+                                </form>
+                            @elseif($user->id === auth()->id())
+                                <p class="text-xs text-gray-400 dark:text-gray-500">You cannot change your own account status.</p>
+                            @endif
+
+                            <input type="text" id="status-reason-input" placeholder="Reason (stored in audit log)" class="rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm focus:border-market-500 focus:ring-market-500 w-64" />
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {{-- Account information --}}
                         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
@@ -168,6 +232,29 @@
             if (button) {
                 button.disabled = true;
                 button.innerHTML = 'Deleting…';
+            }
+            return true;
+        }
+
+        function confirmAccountAction(form, actionLabel, reasonSelector) {
+            if (!confirm('Are you sure you want to ' + actionLabel + ' this account?')) {
+                return false;
+            }
+            var reason = '';
+            if (reasonSelector) {
+                var reasonEl = document.querySelector(reasonSelector);
+                if (reasonEl) {
+                    reason = reasonEl.value;
+                }
+            }
+            var reasonInput = form.querySelector('input[name="reason"]');
+            if (reasonInput) {
+                reasonInput.value = reason;
+            }
+            var button = form.querySelector('button[type="submit"]');
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = 'Saving…';
             }
             return true;
         }

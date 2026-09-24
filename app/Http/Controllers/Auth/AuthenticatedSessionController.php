@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -14,7 +16,7 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): \Illuminate\Http\Response
+    public function create(): Response
     {
         $response = response()->view('auth.login');
         // Prevent caching of login page to avoid stale CSRF tokens (419)
@@ -34,7 +36,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = Auth::user();
 
         if (! $user->isActive()) {
@@ -45,6 +47,13 @@ class AuthenticatedSessionController extends Controller
             return back()->withErrors([
                 'email' => 'Your account has been suspended. Please contact support.',
             ]);
+        }
+
+        // Always send admins to their dashboard. Redirecting via `intended()`
+        // can resurrect a stale ``url.intended`` (set when a guest bounced off
+        // an auth-protected admin page) and land the admin on a 404 after login.
+        if ($user->role_type === 'admin') {
+            return redirect()->route('admin.dashboard');
         }
 
         return redirect()->intended($user->getDashboardRoute());

@@ -100,7 +100,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     // Users
     Route::get('users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
     Route::get('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'show'])->name('users.show');
+    Route::patch('users/{user}/verify', [App\Http\Controllers\Admin\UserController::class, 'verify'])->name('users.verify');
+    Route::patch('users/{user}/status', [App\Http\Controllers\Admin\UserController::class, 'updateStatus'])->name('users.update-status');
     Route::delete('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
+
+    // Notifications (in-app admin alerts)
+    Route::get('notifications', [App\Http\Controllers\Admin\NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/{notification}/read', [App\Http\Controllers\Admin\NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('notifications/read-all', [App\Http\Controllers\Admin\NotificationController::class, 'readAll'])->name('notifications.read-all');
 
     Route::resource('tax-rates', App\Http\Controllers\Admin\TaxRateController::class)->except('show');
     Route::patch('/tax-rates/{taxRate}/toggle', [App\Http\Controllers\Admin\TaxRateController::class, 'toggle'])->name('tax-rates.toggle');

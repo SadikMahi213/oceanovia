@@ -232,7 +232,41 @@
                         </div>
                     </div>
 
-                    {{-- ===== SECTION 5: Top Sellers & Recent Refunds ===== --}}
+                    {{-- ===== SECTION 5: Recent Notifications (admin alerts) ===== --}}
+                    @if($recentNotifications->isNotEmpty() || $unreadNotificationsCount > 0)
+                        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-8">
+                            <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                                <h2 class="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-market-600 dark:text-market-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                                    Notifications
+                                    @if($unreadNotificationsCount > 0)
+                                        <span class="inline-flex px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">{{ $unreadNotificationsCount }} new</span>
+                                    @endif
+                                </h2>
+                                <a href="{{ route('admin.notifications.index') }}" class="text-xs font-medium text-market-600 dark:text-market-400 hover:underline">View All</a>
+                            </div>
+                            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                                @forelse($recentNotifications as $notification)
+                                    <a href="{{ $notification->link }}" class="flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                        <div class="flex items-center gap-3 min-w-0">
+                                            @if(!$notification->read_at)
+                                                <span class="w-2 h-2 rounded-full bg-market-500 shrink-0 mt-0.5"></span>
+                                            @endif
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate {{ $notification->read_at ? '' : 'font-semibold' }}">{{ $notification->title }}</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ $notification->created_at->diffForHumans() }} · {{ data_get($notification->data, 'email') }}</p>
+                                            </div>
+                                        </div>
+                                        <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0 ml-3">{{ $notification->created_at->format('M d, H:i') }}</span>
+                                    </a>
+                                @empty
+                                    <p class="px-5 py-8 text-sm text-gray-500 dark:text-gray-400 text-center">No notifications yet.</p>
+                                @endforelse
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- ===== SECTION 6: Top Sellers & Recent Refunds ===== --}}
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {{-- Top Sellers --}}
                         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
