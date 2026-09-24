@@ -82,7 +82,16 @@
                                             </td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400 text-right">{{ $user->created_at->format('M d, Y') }}</td>
                                             <td class="px-5 py-4 text-right">
-                                                <a href="{{ route('admin.users.show', $user) }}" class="inline-flex items-center gap-1 text-sm font-medium text-market-600 hover:text-market-700 dark:text-market-400 dark:hover:text-market-300">View</a>
+                                                <div class="flex items-center justify-end gap-3">
+                                                    <a href="{{ route('admin.users.show', $user) }}" class="inline-flex items-center gap-1 text-sm font-medium text-market-600 hover:text-market-700 dark:text-market-400 dark:hover:text-market-300">View</a>
+                                                    @if($user->id !== auth()->id())
+                                                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Delete user {{ addslashes($user->full_name) }} ({{ addslashes($user->email) }})?\n\nTheir account will be disabled. Orders, payouts, KYC and history records are preserved.')" class="inline">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" onclick="this.disabled=true; this.innerHTML='Deleting…'">Delete</button>
+                                                        </form>
+                                                    @endif
+                                                </div>
                                             </td>
                                         </tr>
                                     @empty

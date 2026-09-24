@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AuditService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -45,5 +47,24 @@ class UserController extends Controller
     public function show(User $user): View
     {
         return view('admin.users.show', compact('user'));
+    }
+
+    public function destroy(User $user, Request $request): RedirectResponse
+    {
+        if ($user->id === $request->user()->id) {
+            return back()->with('error', 'You cannot delete your own account.');
+        }
+
+        $user->tokens()->delete();
+        $user->delete();
+
+        app(AuditService::class)->log('user.deleted', $user, [
+            'id' => $user->id,
+            'email' => $user->email,
+            'role_type' => $user->role_type,
+        ]);
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User deleted successfully.');
     }
 }

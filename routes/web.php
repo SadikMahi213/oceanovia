@@ -100,6 +100,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     // Users
     Route::get('users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
     Route::get('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'show'])->name('users.show');
+    Route::delete('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
 
     Route::resource('tax-rates', App\Http\Controllers\Admin\TaxRateController::class)->except('show');
     Route::patch('/tax-rates/{taxRate}/toggle', [App\Http\Controllers\Admin\TaxRateController::class, 'toggle'])->name('tax-rates.toggle');

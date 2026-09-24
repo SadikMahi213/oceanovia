@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -110,5 +111,91 @@ class AdminUsersTest extends TestCase
         $this->actingAs($this->makeAdmin())
             ->get('/admin/users/99999')
             ->assertNotFound();
+    }
+
+    public function test_admin_can_delete_a_user(): void
+    {
+        $admin = $this->makeAdmin();
+        $target = $this->makeRegisteredUser();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.users.destroy', $target))
+            ->assertRedirect(route('admin.users.index'))
+            ->assertSessionHas('success', 'User deleted successfully.');
+
+        $this->assertSoftDeleted('users', ['id' => $target->id]);
+    }
+
+    public function test_non_admin_cannot_delete_a_user(): void
+    {
+        $target = $this->makeRegisteredUser();
+
+        $this->actingAs($this->makeNonAdmin())
+            ->delete(route('admin.users.destroy', $target))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'deleted_at' => null]);
+    }
+
+    public function test_guest_cannot_delete_a_user(): void
+    {
+        $target = $this->makeRegisteredUser();
+
+        $this->delete(route('admin.users.destroy', $target))
+            ->assertRedirect(route('login'));
+
+        $this->assertDatabaseHas('users', ['id' => $target->id, 'deleted_at' => null]);
+    }
+
+    public function test_admin_cannot_delete_own_account(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.users.destroy', $admin))
+            ->assertRedirect()
+            ->assertSessionHas('error', 'You cannot delete your own account.');
+
+        $this->assertNotSoftDeleted('users', ['id' => $admin->id]);
+    }
+
+    public function test_deleted_user_disappears_from_admin_list(): void
+    {
+        $admin = $this->makeAdmin();
+        $target = $this->makeRegisteredUser();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.users.destroy', $target))
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.users.index'))
+            ->assertOk()
+            ->assertDontSee('jane@example.com');
+    }
+
+    public function test_deleting_a_user_preserves_their_financial_history(): void
+    {
+        $admin = $this->makeAdmin();
+        $user = $this->makeRegisteredUser();
+
+        $order = Order::create([
+            'user_id' => $user->id,
+            'subtotal' => 100,
+            'shipping_cost' => 10,
+            'tax' => 5,
+            'discount' => 0,
+            'total' => 115,
+            'status' => 'confirmed',
+            'payment_method' => 'card',
+            'payment_status' => 'paid',
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.users.destroy', $user))
+            ->assertRedirect(route('admin.users.index'));
+
+        $this->assertSoftDeleted('users', ['id' => $user->id]);
+        $this->assertDatabaseHas('orders', ['id' => $order->id, 'user_id' => $user->id]);
     }
 }

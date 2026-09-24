@@ -32,24 +32,24 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'lastname' => ['nullable', 'string', 'max:255'],
             'username' => ['nullable', 'string', 'max:255', 'unique:'.User::class],
-            'email'    => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'phone'    => ['nullable', 'string', 'max:20'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'phone' => ['nullable', 'string', 'max:20'],
             'password' => ['required', 'confirmed', Rules\Password::min(8)->mixedCase()->numbers()->symbols()],
             'role_type' => ['required', 'string', 'in:customer,seller,supplier'],
         ]);
 
         $user = User::create([
-            'name'     => $request->name,
+            'name' => $request->name,
             'lastname' => $request->lastname,
             'username' => $request->username ?? str()->slug($request->name.'-'.uniqid()),
-            'email'    => $request->email,
-            'phone'    => $request->phone,
+            'email' => $request->email,
+            'phone' => $request->phone,
             'password' => Hash::make($request->password),
             'role_type' => $request->role_type,
-            'status'    => 'active',
+            'status' => 'active',
         ]);
 
         // Assign the corresponding Spatie role
@@ -71,6 +71,10 @@ class RegisteredUserController extends Controller
         }
 
         Auth::login($user);
+
+        if (! $user->hasVerifiedEmail()) {
+            return redirect()->intended(route('verification.notice'));
+        }
 
         return redirect()->intended($user->getDashboardRoute());
     }

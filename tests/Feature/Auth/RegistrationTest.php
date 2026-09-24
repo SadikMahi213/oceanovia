@@ -33,7 +33,26 @@ class RegistrationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('verification.notice', absolute: false));
+    }
+
+    public function test_registered_user_is_unverified(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $this->post('/register', [
+            'name' => 'Test User',
+            'email' => 'unverified@example.com',
+            'password' => 'Password@123',
+            'password_confirmation' => 'Password@123',
+            'role_type' => 'customer',
+        ]);
+
+        $user = User::where('email', 'unverified@example.com')->first();
+
+        $this->assertNotNull($user);
+        $this->assertNull($user->email_verified_at);
+        $this->assertFalse($user->hasVerifiedEmail());
     }
 
     public function test_verification_email_is_sent_upon_registration(): void

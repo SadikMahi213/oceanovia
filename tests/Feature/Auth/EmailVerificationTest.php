@@ -69,4 +69,65 @@ class EmailVerificationTest extends TestCase
 
         $this->assertFalse($user->fresh()->hasVerifiedEmail());
     }
+
+    public function test_expired_verification_link_is_rejected(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->subMinutes(5),
+            ['id' => $user->id, 'hash' => sha1($user->email)]
+        );
+
+        $this->actingAs($user)->get($verificationUrl)->assertStatus(403);
+
+        $this->assertFalse($user->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_verification_cannot_be_applied_to_another_user_via_id_manipulation(): void
+    {
+        $target = User::factory()->unverified()->create();
+        $attacker = User::factory()->unverified()->create();
+
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $target->id, 'hash' => sha1($attacker->email)]
+        );
+
+        $this->actingAs($attacker)->get($verificationUrl);
+
+        $this->assertFalse($target->fresh()->hasVerifiedEmail());
+        $this->assertFalse($attacker->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_verified_user_is_redirected_and_never_resent(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post('/email/verification-notification');
+
+        $response->assertRedirect(route('dashboard', absolute: false));
+        Notification::assertNothingSent();
+    }
+
+    public function test_resend_endpoint_is_throttled(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
+                ->actingAs($user)
+                ->post('/email/verification-notification')
+                ->assertSessionHas('status', 'verification-link-sent');
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.7'])
+            ->actingAs($user)
+            ->post('/email/verification-notification')
+            ->assertStatus(429);
+    }
 }
