@@ -6,6 +6,7 @@ use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -72,5 +73,100 @@ class RegistrationTest extends TestCase
 
         Notification::assertSentTo($user, VerifyEmail::class);
         $this->assertFalse($user->hasVerifiedEmail());
+    }
+
+    public function test_duplicate_active_email_is_rejected(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $this->post('/register', [
+            'name' => 'First User',
+            'email' => 'taken@example.com',
+            'password' => 'Password@123',
+            'password_confirmation' => 'Password@123',
+            'role_type' => 'customer',
+        ]);
+
+        $this->post('/logout');
+
+        $this->post('/register', [
+            'name' => 'Second User',
+            'email' => 'taken@example.com',
+            'password' => 'Password@123',
+            'password_confirmation' => 'Password@123',
+            'role_type' => 'customer',
+        ])->assertSessionHasErrors('email');
+    }
+
+    public function test_deleted_user_email_can_be_reused_for_new_registration(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $oldUser = User::factory()->create(['email' => 'reuse@example.com']);
+        $oldId = $oldUser->id;
+
+        $oldUser->delete();
+        $this->assertSoftDeleted('users', ['id' => $oldId]);
+
+        $response = $this->post('/register', [
+            'name' => 'New User',
+            'email' => 'reuse@example.com',
+            'password' => 'Password@123',
+            'password_confirmation' => 'Password@123',
+            'role_type' => 'customer',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('verification.notice', absolute: false));
+
+        $newUser = User::withTrashed()->where('email', 'reuse@example.com')
+            ->where('id', '!=', $oldId)->first();
+
+        $this->assertNotNull($newUser);
+        $this->assertNull($newUser->deleted_at);
+        $this->assertNull($newUser->email_verified_at);
+        $this->assertNotSame($oldId, $newUser->id);
+    }
+
+    public function test_new_account_created_with_reused_email_is_independent(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $oldUser = User::factory()->create(['email' => 'fresh@example.com']);
+        $oldUser->delete();
+
+        $this->post('/register', [
+            'name' => 'Fresh User',
+            'email' => 'fresh@example.com',
+            'password' => 'Password@123',
+            'password_confirmation' => 'Password@123',
+            'role_type' => 'customer',
+        ]);
+
+        $newUser = User::where('email', 'fresh@example.com')->firstOrFail();
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('seller_balances', 0);
+        $this->assertDatabaseCount('wishlists', 0);
+        $this->assertDatabaseCount('reviews', 0);
+    }
+
+    public function test_deleted_user_cannot_authenticate_anymore(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $user = User::factory()->create([
+            'email' => 'gone@example.com',
+            'password' => 'Password@123',
+            'email_verified_at' => now(),
+        ]);
+        $user->delete();
+
+        $this->assertFalse(Auth::attempt([
+            'email' => 'gone@example.com',
+            'password' => 'Password@123',
+        ]));
+        $this->assertGuest();
     }
 }
