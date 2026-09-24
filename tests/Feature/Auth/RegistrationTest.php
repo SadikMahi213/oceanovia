@@ -37,6 +37,24 @@ class RegistrationTest extends TestCase
         $response->assertRedirect(route('verification.notice', absolute: false));
     }
 
+    public function test_registration_ignores_stale_intended_url(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        session(['url.intended' => '/admin/users/999']);
+
+        $response = $this->post('/register', [
+            'name' => 'Test User',
+            'email' => 'intended@example.com',
+            'password' => 'Password@123',
+            'password_confirmation' => 'Password@123',
+            'role_type' => 'customer',
+        ]);
+
+        $this->assertAuthenticated();
+        $response->assertRedirect(route('verification.notice', absolute: false));
+    }
+
     public function test_registered_user_is_unverified(): void
     {
         $this->seed(RolesAndPermissionsSeeder::class);
