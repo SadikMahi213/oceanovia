@@ -177,6 +177,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('commissions/{commission}', [App\Http\Controllers\Admin\CommissionController::class, 'show'])->name('commissions.show');
     Route::post('commissions/{commission}/mark-paid', [App\Http\Controllers\Admin\CommissionController::class, 'markPaid'])->name('commissions.mark-paid');
 
+    Route::get('procurements', [App\Http\Controllers\Admin\ProcurementController::class, 'index'])->name('procurements.index');
+    Route::get('procurements/{procurement}', [App\Http\Controllers\Admin\ProcurementController::class, 'show'])->name('procurements.show');
+
     Route::get('reports/sales', [App\Http\Controllers\Admin\ReportController::class, 'sales'])->name('reports.sales');
     Route::get('reports/sellers', [App\Http\Controllers\Admin\ReportController::class, 'sellers'])->name('reports.sellers');
     Route::get('reports/products', [App\Http\Controllers\Admin\ReportController::class, 'products'])->name('reports.products');
@@ -228,6 +231,16 @@ Route::prefix('seller')->name('seller.')->middleware(['auth', 'role:seller'])->g
     Route::get('/returns', [App\Http\Controllers\SellerController::class, 'returnRequests'])->name('returns.index');
     Route::get('/returns/{returnRequest}', [App\Http\Controllers\SellerController::class, 'returnRequestShow'])->name('returns.show');
     Route::patch('/returns/{returnRequest}', [App\Http\Controllers\SellerController::class, 'returnRequestUpdate'])->name('returns.update');
+
+    // ─── Supplier Source Catalog (import) ────────────────────────────────
+    Route::get('/suppliers', [App\Http\Controllers\SellerController::class, 'supplierCatalog'])->name('suppliers.catalog');
+    Route::post('/suppliers/import', [App\Http\Controllers\SellerController::class, 'supplierImport'])->name('suppliers.import');
+    Route::get('/suppliers/connected', [App\Http\Controllers\SellerController::class, 'supplierConnected'])->name('suppliers.connected');
+    Route::delete('/suppliers/{product}', [App\Http\Controllers\SellerController::class, 'supplierDisconnect'])->name('suppliers.disconnect');
+
+    // ─── Procurement Orders ──────────────────────────────────────────────
+    Route::get('/procurement', [App\Http\Controllers\SellerController::class, 'procurements'])->name('procurement.index');
+    Route::get('/procurement/{procurement}', [App\Http\Controllers\SellerController::class, 'procurementShow'])->name('procurement.show');
     Route::get('/messages', [App\Http\Controllers\SellerController::class, 'messages'])->name('messages.index');
     Route::get('/messages/{sellerMessage}', [App\Http\Controllers\SellerController::class, 'messageShow'])->name('messages.show');
     Route::post('/messages/{sellerMessage}/reply', [App\Http\Controllers\SellerController::class, 'messageReply'])->name('messages.reply');
@@ -272,6 +285,19 @@ Route::prefix('supplier')->name('supplier.')->middleware(['auth', 'role:supplier
     Route::post('/inventory/{inventory}/adjust', [App\Http\Controllers\SupplierController::class, 'inventoryAdjust'])->name('inventory.adjust');
     Route::post('/inventory/{inventory}/transfer', [App\Http\Controllers\SupplierController::class, 'inventoryTransfer'])->name('inventory.transfer');
     Route::get('/inventory/logs/{product}', [App\Http\Controllers\SupplierController::class, 'inventoryLogs'])->name('inventory.logs');
+
+    // ── Source Catalog ────────────────────────────────────────────────
+    Route::get('/catalog', [App\Http\Controllers\SupplierController::class, 'catalog'])->name('catalog.index');
+    Route::get('/catalog/create', [App\Http\Controllers\SupplierController::class, 'catalogCreate'])->name('catalog.create');
+    Route::post('/catalog', [App\Http\Controllers\SupplierController::class, 'catalogStore'])->name('catalog.store');
+    Route::get('/catalog/{product}/edit', [App\Http\Controllers\SupplierController::class, 'catalogEdit'])->name('catalog.edit');
+    Route::put('/catalog/{product}', [App\Http\Controllers\SupplierController::class, 'catalogUpdate'])->name('catalog.update');
+    Route::post('/catalog/{product}/stock', [App\Http\Controllers\SupplierController::class, 'catalogStockUpdate'])->name('catalog.stock');
+    Route::delete('/catalog/{product}', [App\Http\Controllers\SupplierController::class, 'catalogDestroy'])->name('catalog.destroy');
+
+    // ── Procurement Orders ─────────────────────────────────────────────
+    Route::get('/procurement', [App\Http\Controllers\SupplierController::class, 'procurements'])->name('procurement.index');
+    Route::get('/procurement/{procurement}', [App\Http\Controllers\SupplierController::class, 'procurementShow'])->name('procurement.show');
 
     // ── Orders ─────────────────────────────────────────────────────────
     Route::get('/orders', [App\Http\Controllers\SupplierController::class, 'orders'])->name('orders.index');

@@ -7,6 +7,7 @@ use App\Models\Inventory;
 use App\Models\InventoryLog;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\ProcurementOrder;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\ReturnRequest;
@@ -16,9 +17,11 @@ use App\Models\SellerBalance;
 use App\Models\SellerCoupon;
 use App\Models\SellerMessage;
 use App\Models\SellerProfile;
+use App\Models\SupplierProduct;
 use App\Models\User;
 use App\Models\UserNotification;
 use App\Services\AuditService;
+use App\Services\ProcurementService;
 use App\Services\RefundService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -494,6 +497,8 @@ class SellerController extends Controller
         }
         $order->save();
 
+        app(ProcurementService::class)->syncForOrder($order);
+
         return redirect()->back()->with('success', 'Order status updated to ' . ucfirst($validated['status']) . '.');
     }
 
@@ -582,6 +587,128 @@ class SellerController extends Controller
             ->all();
 
         return view('seller.analytics', compact('monthlySales', 'topProducts', 'orderStats', 'monthlyRevenue'));
+    }
+
+    // ─── Supplier Source Catalog (import) ─────────────────────────────────
+
+    public function supplierCatalog(): View
+    {
+        $supplierProducts = SupplierProduct::published()
+            ->with(['supplier.supplierProfile', 'stock'])
+            ->latest()
+            ->paginate(15);
+
+        $connected = Product::where('seller_id', auth()->id())
+            ->whereNotNull('supplier_product_id')
+            ->pluck('supplier_product_id')
+            ->all();
+
+        return view('seller.suppliers.catalog', compact('supplierProducts', 'connected'));
+    }
+
+    public function supplierImport(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'supplier_product_id' => ['required', 'exists:supplier_products,id,status,published'],
+            'price' => ['required', 'numeric', 'min:0.01'],
+            'status' => ['sometimes', 'in:published,draft'],
+        ]);
+
+        $sp = SupplierProduct::published()->findOrFail($validated['supplier_product_id']);
+
+        $already = Product::where('seller_id', auth()->id())
+            ->where('supplier_product_id', $sp->id)
+            ->exists();
+
+        if ($already) {
+            return redirect()->back()->with('error', 'This product is already in your store.');
+        }
+
+        $product = Product::create([
+            'seller_id'           => auth()->id(),
+            'supplier_product_id' => $sp->id,
+            'sourcing_price'      => (float) $sp->wholesale_price,
+            'category_id'         => $sp->category_id,
+            'brand_id'            => $sp->brand_id,
+            'name'                => $sp->name,
+            'slug'                => Str::slug($sp->name).'-'.Str::random(6),
+            'description'         => $sp->description,
+            'short_description'   => $sp->short_description,
+            'price'               => $validated['price'],
+            'compare_price'       => $sp->compare_price,
+            'cost_per_item'       => (float) $sp->wholesale_price,
+            'sku'                 => $sp->sku,
+            'barcode'             => $sp->barcode,
+            'weight'              => $sp->weight,
+            'height'              => $sp->height,
+            'width'               => $sp->width,
+            'length'              => $sp->length,
+            'material'            => $sp->material,
+            'colors'              => $sp->colors,
+            'sizes'               => $sp->sizes,
+            'tags'                => $sp->tags,
+            'images'              => $sp->images,
+            'unit'                => $sp->unit,
+            'status'              => $validated['status'] ?? 'published',
+            'is_featured'         => false,
+            'total_views'         => 0,
+            'total_sold'          => 0,
+            'meta_title'          => $sp->meta_title,
+            'meta_description'    => $sp->meta_description,
+        ]);
+
+        return redirect()->route('seller.suppliers.connected')
+            ->with('success', 'Product imported: '.$product->name);
+    }
+
+    public function supplierConnected(): View
+    {
+        $products = Product::where('seller_id', auth()->id())
+            ->whereNotNull('supplier_product_id')
+            ->with(['supplierProduct.stock', 'supplierProduct.supplier.supplierProfile'])
+            ->latest()
+            ->paginate(15);
+
+        return view('seller.suppliers.connected', compact('products'));
+    }
+
+    public function supplierDisconnect(Product $product): RedirectResponse
+    {
+        if ($product->seller_id !== auth()->id() || ! $product->supplier_product_id) {
+            abort(403);
+        }
+
+        $product->delete();
+
+        return redirect()->back()->with('success', 'Product removed from your store.');
+    }
+
+    // ─── Procurement Orders (Seller view) ───────────────────────────────────
+
+    public function procurements(): View
+    {
+        $procurements = ProcurementOrder::bySeller(auth()->id())
+            ->with(['order', 'supplier.supplierProfile'])
+            ->latest()
+            ->paginate(15);
+
+        return view('seller.procurement.index', compact('procurements'));
+    }
+
+    public function procurementShow(ProcurementOrder $procurement): View
+    {
+        if ($procurement->seller_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $procurement->load([
+            'order.shippingAddress',
+            'supplier.supplierProfile',
+            'items.orderItem.product',
+            'items.supplierProduct',
+        ]);
+
+        return view('seller.procurement.show', compact('procurement'));
     }
 
     public function becomeSeller(AuditService $auditService): RedirectResponse

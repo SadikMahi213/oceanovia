@@ -6,6 +6,7 @@ use App\Models\Inventory;
 use App\Models\InventoryLog;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\ProcurementOrder;
 use App\Models\Product;
 use App\Models\ReturnRequest;
 use App\Models\Review;
@@ -14,6 +15,7 @@ use App\Models\SupplierBalance;
 use App\Models\SupplierMessage;
 use App\Models\SupplierMessageReply;
 use App\Models\SupplierPayout;
+use App\Models\SupplierProduct;
 use App\Models\SupplierProfile;
 use App\Models\SupplierShippingRate;
 use App\Models\SupplierShippingZone;
@@ -21,6 +23,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\UserNotification;
 use App\Services\AuditService;
+use App\Services\ProcurementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +31,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -342,6 +347,12 @@ class SupplierController extends Controller
             abort(403);
         }
 
+        $validated = $request->validate([
+            'tracking_number' => ['nullable', 'string', 'max:255'],
+            'carrier' => ['nullable', 'string', 'max:100'],
+            'tracking_url' => ['nullable', 'url', 'max:500'],
+        ]);
+
         $supplierItems = $order->items()->where('supplier_id', auth()->id())->get();
         foreach ($supplierItems as $item) {
             $item->status = 'shipped';
@@ -355,6 +366,23 @@ class SupplierController extends Controller
             $order->save();
         }
 
+        // Sync procurement orders with the new shipped status and record tracking.
+        $procurementService = app(ProcurementService::class);
+        if ($request->filled('tracking_number') || $request->filled('carrier')) {
+            $procurements = ProcurementOrder::where('order_id', $order->id)
+                ->where('supplier_id', auth()->id())
+                ->get();
+            foreach ($procurements as $po) {
+                $procurementService->updateTracking(
+                    $po,
+                    $request->carrier,
+                    $request->tracking_number,
+                    $request->tracking_url
+                );
+            }
+        }
+        $procurementService->syncForOrder($order);
+
         return redirect()->back()->with('success', 'Items marked as shipped.');
     }
 
@@ -364,6 +392,8 @@ class SupplierController extends Controller
             abort(403);
         }
         $order->items()->where('supplier_id', auth()->id())->update(['status' => 'processing']);
+
+        app(ProcurementService::class)->syncForOrder($order);
 
         return redirect()->back()->with('success', 'Order accepted.');
     }
@@ -380,6 +410,8 @@ class SupplierController extends Controller
         ]);
         $order->update(['cancellation_reason' => $validated['reason'], 'cancelled_at' => now(), 'status' => 'cancelled']);
 
+        app(ProcurementService::class)->syncForOrder($order);
+
         return redirect()->back()->with('success', 'Order rejected.');
     }
 
@@ -390,6 +422,8 @@ class SupplierController extends Controller
         }
         $order->items()->where('supplier_id', auth()->id())->update(['status' => 'packed']);
 
+        app(ProcurementService::class)->syncForOrder($order);
+
         return redirect()->back()->with('success', 'Items marked as packed.');
     }
 
@@ -399,6 +433,8 @@ class SupplierController extends Controller
             abort(403);
         }
         $order->items()->where('supplier_id', auth()->id())->update(['status' => 'ready_for_pickup']);
+
+        app(ProcurementService::class)->syncForOrder($order);
 
         return redirect()->back()->with('success', 'Items ready for pickup.');
     }
@@ -690,6 +726,8 @@ class SupplierController extends Controller
         } elseif ($validated['status'] === 'approved') {
             $return->orderItem->update(['status' => 'returned']);
         }
+
+        app(ProcurementService::class)->syncForOrder($return->orderItem->order);
 
         return redirect()->back()->with('success', 'Return request updated.');
     }
@@ -1117,6 +1155,240 @@ class SupplierController extends Controller
             'label' => $profile->kyc_status_label,
             'is_complete' => $profile->kyc_completed,
         ]);
+    }
+
+    // ─── Source Catalog (supplier_products) ────────────────────────────────
+
+    public function catalog(): View
+    {
+        $products = SupplierProduct::bySupplier(auth()->id())
+            ->with(['stock', 'category'])
+            ->latest()
+            ->paginate(15);
+
+        return view('supplier.catalog.index', compact('products'));
+    }
+
+    public function catalogCreate(): View
+    {
+        $categories = \App\Models\Category::active()->ordered()->get();
+        $brands = \App\Models\Brand::orderBy('name')->get();
+
+        return view('supplier.catalog.form', ['product' => null, 'categories' => $categories, 'brands' => $brands]);
+    }
+
+    public function catalogStore(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'short_description' => ['nullable', 'string', 'max:500'],
+            'wholesale_price' => ['required', 'numeric', 'min:0'],
+            'compare_price' => ['nullable', 'numeric', 'min:0'],
+            'sku' => ['required', 'string', 'max:100', Rule::unique('supplier_products', 'sku')->where(fn ($q) => $q->where('supplier_id', auth()->id()))],
+            'barcode' => ['nullable', 'string', 'max:100'],
+            'category_id' => ['nullable', 'exists:categories,id'],
+            'brand_id' => ['nullable', 'exists:brands,id'],
+            'weight' => ['nullable', 'numeric', 'min:0'],
+            'height' => ['nullable', 'numeric', 'min:0'],
+            'width' => ['nullable', 'numeric', 'min:0'],
+            'length' => ['nullable', 'numeric', 'min:0'],
+            'material' => ['nullable', 'string', 'max:255'],
+            'colors' => ['nullable', 'string', 'max:2000'],
+            'sizes' => ['nullable', 'string', 'max:2000'],
+            'tags' => ['nullable', 'string', 'max:2000'],
+            'unit' => ['nullable', 'string', 'max:50'],
+            'status' => ['required', 'in:published,draft'],
+            'stock_quantity' => ['required', 'integer', 'min:0'],
+            'stock_alert_threshold' => ['nullable', 'integer', 'min:0'],
+            'warehouse_location' => ['nullable', 'string', 'max:255'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'meta_title' => ['nullable', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $validated['supplier_id'] = auth()->id();
+        $validated['slug'] = Str::slug($validated['name']).'-'.Str::random(6);
+
+        foreach (['colors', 'sizes', 'tags'] as $listField) {
+            if (array_key_exists($listField, $validated)) {
+                $validated[$listField] = $this->parseListInput($validated[$listField]);
+            }
+        }
+
+        if ($request->hasFile('images')) {
+            $paths = [];
+            foreach ($request->file('images') as $image) {
+                $paths[] = $image->store('supplier-catalog', 'public');
+            }
+            $validated['images'] = $paths;
+        }
+
+        $stockQuantity = (int) ($validated['stock_quantity'] ?? 0);
+        $alertThreshold = (int) ($validated['stock_alert_threshold'] ?? 5);
+        $warehouse = $validated['warehouse_location'] ?? null;
+        unset($validated['stock_quantity'], $validated['stock_alert_threshold'], $validated['warehouse_location']);
+
+        $product = SupplierProduct::create($validated);
+
+        $product->stock()->create([
+            'stock_quantity'        => $stockQuantity,
+            'reserved_quantity'     => 0,
+            'sold_quantity'         => 0,
+            'stock_alert_threshold' => $alertThreshold,
+            'warehouse_location'    => $warehouse,
+        ]);
+
+        return redirect()->route('supplier.catalog.index')
+            ->with('success', 'Product added to your source catalog.');
+    }
+
+    public function catalogEdit(SupplierProduct $product): View
+    {
+        if ($product->supplier_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $categories = \App\Models\Category::active()->ordered()->get();
+        $brands = \App\Models\Brand::orderBy('name')->get();
+
+        return view('supplier.catalog.form', compact('product', 'categories', 'brands'));
+    }
+
+    public function catalogUpdate(Request $request, SupplierProduct $product): RedirectResponse
+    {
+        if ($product->supplier_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'short_description' => ['nullable', 'string', 'max:500'],
+            'wholesale_price' => ['required', 'numeric', 'min:0'],
+            'compare_price' => ['nullable', 'numeric', 'min:0'],
+            'sku' => ['required', 'string', 'max:100', Rule::unique('supplier_products', 'sku')->where(fn ($q) => $q->where('supplier_id', auth()->id()))->ignore($product->id)],
+            'barcode' => ['nullable', 'string', 'max:100'],
+            'category_id' => ['nullable', 'exists:categories,id'],
+            'brand_id' => ['nullable', 'exists:brands,id'],
+            'weight' => ['nullable', 'numeric', 'min:0'],
+            'height' => ['nullable', 'numeric', 'min:0'],
+            'width' => ['nullable', 'numeric', 'min:0'],
+            'length' => ['nullable', 'numeric', 'min:0'],
+            'material' => ['nullable', 'string', 'max:255'],
+            'colors' => ['nullable', 'string', 'max:2000'],
+            'sizes' => ['nullable', 'string', 'max:2000'],
+            'tags' => ['nullable', 'string', 'max:2000'],
+            'unit' => ['nullable', 'string', 'max:50'],
+            'status' => ['required', 'in:published,draft'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'meta_title' => ['nullable', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        foreach (['colors', 'sizes', 'tags'] as $listField) {
+            if (array_key_exists($listField, $validated)) {
+                $validated[$listField] = $this->parseListInput($validated[$listField]);
+            }
+        }
+
+        if ($request->hasFile('images')) {
+            $paths = $product->images ?? [];
+            foreach ($request->file('images') as $image) {
+                $paths[] = $image->store('supplier-catalog', 'public');
+            }
+            $validated['images'] = $paths;
+        }
+
+        try {
+            DB::transaction(function () use ($product, $validated) {
+                $product->update($validated);
+            });
+        } catch (\Throwable $e) {
+            Log::error('Supplier catalog update failed', [
+                'product_id'   => $product->id,
+                'supplier_id'  => auth()->id(),
+                'exception'    => $e,
+            ]);
+
+            return redirect()->route('supplier.catalog.index')
+                ->with('error', 'Product update failed. Please check the information and try again.');
+        }
+
+        return redirect()->route('supplier.catalog.index')
+            ->with('success', 'Product updated successfully.');
+    }
+
+    public function catalogStockUpdate(Request $request, SupplierProduct $product): RedirectResponse
+    {
+        if ($product->supplier_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'stock_quantity'        => ['required', 'integer', 'min:0'],
+            'stock_alert_threshold' => ['nullable', 'integer', 'min:0'],
+            'warehouse_location'    => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $stock = $product->stock()->firstOrCreate([]);
+
+        $stock->update([
+            'stock_quantity'        => (int) $validated['stock_quantity'],
+            'stock_alert_threshold' => $validated['stock_alert_threshold'] ?? $stock->stock_alert_threshold,
+            'warehouse_location'    => $validated['warehouse_location'] ?? $stock->warehouse_location,
+        ]);
+
+        return redirect()->back()->with('success', 'Stock updated successfully.');
+    }
+
+    public function catalogDestroy(SupplierProduct $product): RedirectResponse
+    {
+        if ($product->supplier_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $openProcurementCount = ProcurementOrderItem::where('supplier_product_id', $product->id)
+            ->whereHas('procurementOrder', fn ($q) => $q->whereNotIn('status', ['delivered', 'cancelled']))
+            ->count();
+
+        if ($openProcurementCount > 0) {
+            return redirect()->back()->with('error', 'This product has open procurement orders and cannot be deleted.');
+        }
+
+        $product->delete();
+
+        return redirect()->back()->with('success', 'Source product deleted.');
+    }
+
+    // ─── Procurement Orders ────────────────────────────────────────────────
+
+    public function procurements(): View
+    {
+        $procurements = ProcurementOrder::bySupplier(auth()->id())
+            ->with(['order', 'seller'])
+            ->latest()
+            ->paginate(15);
+
+        return view('supplier.procurement.index', compact('procurements'));
+    }
+
+    public function procurementShow(ProcurementOrder $procurement): View
+    {
+        if ($procurement->supplier_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $procurement->load([
+            'order.shippingAddress',
+            'seller',
+            'items.orderItem.product',
+            'items.supplierProduct',
+        ]);
+
+        return view('supplier.procurement.show', compact('procurement'));
     }
 
     // ─── Become Supplier ──────────────────────────────────────────────────────

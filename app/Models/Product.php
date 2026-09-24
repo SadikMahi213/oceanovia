@@ -17,6 +17,8 @@ class Product extends Model
 
     protected $fillable = [
         'seller_id',
+        'supplier_product_id',
+        'sourcing_price',
         'category_id',
         'brand_id',
         'name',
@@ -56,6 +58,7 @@ class Product extends Model
             'price'          => 'decimal:2',
             'compare_price'   => 'decimal:2',
             'cost_per_item'  => 'decimal:2',
+            'sourcing_price' => 'decimal:2',
             'weight'         => 'decimal:2',
             'height'         => 'decimal:2',
             'width'          => 'decimal:2',
@@ -86,6 +89,11 @@ class Product extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'seller_id');
+    }
+
+    public function supplierProduct(): BelongsTo
+    {
+        return $this->belongsTo(SupplierProduct::class);
     }
 
     public function category(): BelongsTo
@@ -157,7 +165,10 @@ class Product extends Model
     {
         return $query->where(function ($q) {
             $q->whereHas('inventory', fn($q) => $q->where('stock_quantity', '>', 0))
-              ->orWhereHas('variants', fn($q) => $q->where('stock_quantity', '>', 0));
+              ->orWhereHas('variants', fn($q) => $q->where('stock_quantity', '>', 0))
+              ->orWhereHas('supplierProduct.stock', function ($q) {
+                  $q->whereColumn('stock_quantity', '>', 'reserved_quantity');
+              });
         });
     }
 
@@ -241,12 +252,32 @@ class Product extends Model
 
     public function getInStockAttribute(): bool
     {
+        if ($this->supplierProduct) {
+            return $this->available_quantity > 0;
+        }
+
         return $this->inventory()->where('stock_quantity', '>', 0)->exists();
     }
 
     public function getStockQuantityAttribute(): int
     {
+        if ($this->supplierProduct) {
+            return $this->supplierProduct->available_quantity;
+        }
+
         return $this->inventory ? $this->inventory->stock_quantity : 0;
+    }
+
+    /**
+     * Units available to sell (unreserved) for sourced products.
+     */
+    public function getAvailableQuantityAttribute(): int
+    {
+        if ($this->supplierProduct) {
+            return $this->supplierProduct->available_quantity;
+        }
+
+        return $this->inventory ? max(0, $this->inventory->stock_quantity) : 0;
     }
 
     public function getMinVariantPriceAttribute(): ?string

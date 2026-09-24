@@ -15,6 +15,8 @@ class OrderItem extends Model
         'product_id',
         'seller_id',
         'supplier_id',
+        'supplier_product_id',
+        'unit_cost',
         'product_name',
         'sku',
         'quantity',
@@ -28,6 +30,7 @@ class OrderItem extends Model
         return [
             'quantity'   => 'integer',
             'unit_price' => 'decimal:2',
+            'unit_cost'  => 'decimal:2',
             'subtotal'   => 'decimal:2',
         ];
     }
@@ -52,5 +55,18 @@ class OrderItem extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(User::class, 'supplier_id');
+    }
+
+    public function supplierProduct(): BelongsTo
+    {
+        return $this->belongsTo(SupplierProduct::class);
+    }
+
+    /**
+     * Margin (retail - commission - sourcing cost) for sourced items.
+     */
+    public function getNetForSellerAttribute(): float
+    {
+        return round((float) $this->subtotal - (float) ($this->unit_cost ?? 0) * $this->quantity, 2);
     }
 }

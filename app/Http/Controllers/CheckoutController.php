@@ -12,7 +12,9 @@ use App\Models\OrderItem;
 use App\Services\CommissionService;
 use App\Services\CouponService;
 use App\Services\PayoutService;
+use App\Services\ProcurementService;
 use App\Services\ShippingService;
+use App\Services\SourceStockService;
 use App\Services\TaxService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -155,7 +157,9 @@ class CheckoutController extends Controller
                     'order_id' => $order->id,
                     'product_id' => $product->id,
                     'seller_id' => $product->seller_id,
-                    'supplier_id' => $product->inventory?->supplier_id,
+                    'supplier_id' => $product->supplierProduct?->supplier_id ?? $product->inventory?->supplier_id,
+                    'supplier_product_id' => $product->supplier_product_id,
+                    'unit_cost' => $product->supplier_product_id ? $product->sourcing_price : null,
                     'product_name' => $product->name,
                     'sku' => $product->sku,
                     'quantity' => $item->quantity,
@@ -175,6 +179,8 @@ class CheckoutController extends Controller
             // Seller credit now happens in success() or webhook() after Stripe confirms payment
 
             // Decrement inventory to prevent overselling
+            // (sourced items reserve supplier source stock instead)
+            app(SourceStockService::class)->reserveForCart($cart->items);
             $this->decrementInventory($cart);
 
             $cart->items()->delete();
@@ -196,6 +202,9 @@ class CheckoutController extends Controller
             'payment_status' => 'pending',
             'confirmed_at' => now(),
         ]);
+
+        // COD is confirmed immediately -> create procurement orders now
+        app(ProcurementService::class)->createForOrder($order);
 
         ProcessOrder::dispatch($order);
 
@@ -308,6 +317,9 @@ class CheckoutController extends Controller
 
                         // Credit seller balances NOW — payment confirmed
                         $this->creditSellers($locked);
+
+                        // Create procurement orders for sourced items
+                        app(ProcurementService::class)->createForOrder($locked);
                     });
                 }
             } catch (\Exception $e) {
@@ -334,6 +346,9 @@ class CheckoutController extends Controller
             'cancelled_at' => now(),
             'cancellation_reason' => 'Payment cancelled',
         ]);
+
+        // Release supplier source reservations and cancel any open procurements
+        app(ProcurementService::class)->cancelForOrder($order, 'Payment cancelled');
 
         return redirect()->route('cart.index')->with('error', 'Payment was cancelled. Your cart items are still saved.');
     }
@@ -374,6 +389,9 @@ class CheckoutController extends Controller
 
                         // Credit seller balances NOW — Stripe confirmed payment
                         $this->creditSellers($order);
+
+                        // Create procurement orders for sourced items
+                        app(ProcurementService::class)->createForOrder($order);
                     }
                 });
             }
@@ -399,8 +417,13 @@ class CheckoutController extends Controller
         $order->load('items');
         foreach ($order->items as $item) {
             if ($item->seller_id) {
-                // Credit NET amount — commission is deducted from the seller's payout
-                $net = $commissionService->netForItem($item);
+                // Sourced items: credit the seller's margin
+                // (retail - platform commission - sourcing cost). Imported/custom
+                // items keep the existing net-of-commission behaviour.
+                $net = $item->supplier_product_id
+                    ? round((float) $item->subtotal - $commissionService->getCommissionForItem($item)->amount - (float) ($item->unit_cost ?? 0) * $item->quantity, 2)
+                    : $commissionService->netForItem($item);
+
                 $payoutService->credit($item->seller_id, $net);
             }
         }
@@ -411,6 +434,12 @@ class CheckoutController extends Controller
         foreach ($cart->items as $item) {
             $inventory = $item->product?->inventory;
             if (! $inventory) {
+                continue;
+            }
+
+            // Sourced items reserve supplier source stock instead of the
+            // per-listing inventory row; skip to avoid double-decrementing.
+            if ($item->product?->supplier_product_id) {
                 continue;
             }
 
