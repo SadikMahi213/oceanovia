@@ -198,4 +198,25 @@ class AdminUsersTest extends TestCase
         $this->assertSoftDeleted('users', ['id' => $user->id]);
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'user_id' => $user->id]);
     }
+
+    public function test_backend_failure_returns_error_flash_and_keeps_user(): void
+    {
+        $admin = $this->makeAdmin();
+        $target = $this->makeRegisteredUser();
+
+        User::deleting(function () {
+            throw new \RuntimeException('simulated delete failure');
+        });
+
+        try {
+            $this->actingAs($admin)
+                ->delete(route('admin.users.destroy', $target))
+                ->assertRedirect()
+                ->assertSessionHas('error', 'Could not delete the user. No changes were made.');
+
+            $this->assertDatabaseHas('users', ['id' => $target->id, 'deleted_at' => null]);
+        } finally {
+            User::flushEventListeners();
+        }
+    }
 }

@@ -11,10 +11,10 @@
                             <h1 class="text-2xl font-bold text-gray-900 dark:text-white mt-1">User Details</h1>
                         </div>
                         @if($user->id !== auth()->id())
-                            <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Delete user {{ addslashes($user->full_name) }} ({{ addslashes($user->email) }})?\n\nTheir account will be disabled. Orders, payouts, KYC and history records are preserved.')">
+                            <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirmDeleteUser(this, 'Delete user {{ addslashes($user->full_name) }} ({{ addslashes($user->email) }})?\n\nTheir account will be disabled. Orders, payouts, KYC and history records are preserved.')">
                                 @csrf
                                 @method('DELETE')
-                                <x-danger-button onclick="this.disabled=true; this.innerHTML='Deleting…'">{{ __('Delete User') }}</x-danger-button>
+                                <x-danger-button>{{ __('Delete User') }}</x-danger-button>
                             </form>
                         @endif
                     </div>
@@ -157,3 +157,19 @@
         </div>
     </section>
 </x-app-layout>
+
+@push('scripts')
+    <script>
+        function confirmDeleteUser(form, message) {
+            if (!confirm(message)) {
+                return false;
+            }
+            var button = form.querySelector('button[type="submit"]');
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = 'Deleting…';
+            }
+            return true;
+        }
+    </script>
+@endpush

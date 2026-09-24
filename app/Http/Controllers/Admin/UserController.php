@@ -55,14 +55,20 @@ class UserController extends Controller
             return back()->with('error', 'You cannot delete your own account.');
         }
 
-        $user->tokens()->delete();
-        $user->delete();
+        try {
+            $user->tokens()->delete();
+            $user->delete();
 
-        app(AuditService::class)->log('user.deleted', $user, [
-            'id' => $user->id,
-            'email' => $user->email,
-            'role_type' => $user->role_type,
-        ]);
+            app(AuditService::class)->log('user.deleted', $user, [
+                'id' => $user->id,
+                'email' => $user->email,
+                'role_type' => $user->role_type,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Could not delete the user. No changes were made.');
+        }
 
         return redirect()->route('admin.users.index')
             ->with('success', 'User deleted successfully.');

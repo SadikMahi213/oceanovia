@@ -85,10 +85,10 @@
                                                 <div class="flex items-center justify-end gap-3">
                                                     <a href="{{ route('admin.users.show', $user) }}" class="inline-flex items-center gap-1 text-sm font-medium text-market-600 hover:text-market-700 dark:text-market-400 dark:hover:text-market-300">View</a>
                                                     @if($user->id !== auth()->id())
-                                                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Delete user {{ addslashes($user->full_name) }} ({{ addslashes($user->email) }})?\n\nTheir account will be disabled. Orders, payouts, KYC and history records are preserved.')" class="inline">
+                                                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline" onsubmit="return confirmDeleteUser(this, 'Delete user {{ addslashes($user->full_name) }} ({{ addslashes($user->email) }})?\n\nTheir account will be disabled. Orders, payouts, KYC and history records are preserved.')">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" onclick="this.disabled=true; this.innerHTML='Deleting…'">Delete</button>
+                                                            <button type="submit" class="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">Delete</button>
                                                         </form>
                                                     @endif
                                                 </div>
@@ -107,3 +107,19 @@
         </div>
     </section>
 </x-app-layout>
+
+@push('scripts')
+    <script>
+        function confirmDeleteUser(form, message) {
+            if (!confirm(message)) {
+                return false;
+            }
+            var button = form.querySelector('button[type="submit"]');
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = 'Deleting…';
+            }
+            return true;
+        }
+    </script>
+@endpush
