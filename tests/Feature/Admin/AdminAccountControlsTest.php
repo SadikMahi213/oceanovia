@@ -387,4 +387,26 @@ class AdminAccountControlsTest extends TestCase
             ->assertOk()
             ->assertSee($notification->title);
     }
+
+    public function test_notification_bell_is_visible_to_admins_only(): void
+    {
+        $admin = $this->makeAdmin();
+        $notification = $this->makeNotificationFor($admin);
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Notifications')
+            ->assertSee('Mark all as read');
+    }
+
+    public function test_notification_bell_is_hidden_from_non_admin_users(): void
+    {
+        $customer = $this->makeNonAdmin();
+
+        $this->actingAs($customer)
+            ->get($customer->getDashboardRoute())
+            ->assertOk()
+            ->assertDontSee('Mark all as read');
+    }
 }

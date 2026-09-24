@@ -1,3 +1,17 @@
+@php
+// Admin-only in-app notification data for the header bell. Only admins see
+// these rows (admins are the only notifiable audience for admin alerts), so
+// the queries run only for admins.
+$adminUnreadCount = 0;
+$adminLatestNotifications = collect();
+if (auth()->user()?->role_type === 'admin') {
+    $adminNotifQuery = \App\Models\UserNotification::query()
+        ->where('notifiable_type', \App\Models\User::class)
+        ->where('notifiable_id', auth()->id());
+    $adminUnreadCount = (clone $adminNotifQuery)->unread()->count();
+    $adminLatestNotifications = (clone $adminNotifQuery)->latest()->take(5)->get();
+}
+@endphp
 <header class="sticky top-0 z-50 bg-white/95 dark:bg-gray-950/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-colors duration-200">
     {{-- Top Bar --}}
     <div class="hidden lg:block bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
@@ -100,6 +114,60 @@
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
                     <span class="absolute -top-0.5 -right-0.5 bg-market-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center" x-text="$store.cart.count" x-show="$store.cart.count > 0" x-cloak></span>
                 </a>
+
+                {{-- Admin notifications bell --}}
+                @if(auth()->user()?->role_type === 'admin')
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="relative p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" title="Notifications">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                            @if($adminUnreadCount > 0)
+                                <span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs rounded-full min-w-4 h-4 px-1 flex items-center justify-center font-bold">{{ $adminUnreadCount > 99 ? '99+' : $adminUnreadCount }}</span>
+                            @endif
+                        </button>
+                        <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50 animate-slide-down" x-cloak>
+                            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                                <p class="text-sm font-semibold text-gray-900 dark:text-white">Notifications</p>
+                                @if($adminUnreadCount > 0)
+                                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ $adminUnreadCount }} unread</span>
+                                @endif
+                            </div>
+                            <div class="max-h-[22rem] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                                @forelse($adminLatestNotifications as $notification)
+                                    <div class="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                        <a href="{{ $notification->link ?? route('admin.notifications.index') }}" class="flex items-start gap-3">
+                                            @if(! $notification->read_at)
+                                                <span class="w-2 h-2 rounded-full bg-market-500 shrink-0 mt-1.5"></span>
+                                            @endif
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate {{ ! $notification->read_at ? 'font-semibold' : '' }}">{{ $notification->title }}</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ data_get($notification->data, 'email') }}</p>
+                                                <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ $notification->created_at->diffForHumans() }} · {{ data_get($notification->data, 'registered_at') ? \Carbon\Carbon::parse($notification->data['registered_at'])->format('M d, Y g:i A') : '' }}</p>
+                                            </div>
+                                        </a>
+                                        @if(! $notification->read_at)
+                                            <form method="POST" action="{{ route('admin.notifications.read', $notification) }}" class="mt-1 ml-5">
+                                                @csrf
+                                                <button type="submit" class="text-xs font-medium text-market-600 dark:text-market-400 hover:underline">Mark as read</button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                @empty
+                                    <div class="px-4 py-8 text-center">
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white">All caught up!</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">No notifications at this time</p>
+                                    </div>
+                                @endforelse
+                            </div>
+                            <div class="px-4 py-2.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 flex items-center justify-between gap-2">
+                                <form method="POST" action="{{ route('admin.notifications.read-all') }}">
+                                    @csrf
+                                    <button type="submit" class="text-xs font-medium text-market-600 dark:text-market-400 hover:underline">Mark all as read</button>
+                                </form>
+                                <a href="{{ route('admin.notifications.index') }}" class="text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-market-600 dark:hover:text-market-400 transition-colors">View all →</a>
+                            </div>
+                        </div>
+                    </div>
+                @endif
 
                 {{-- User Menu --}}
                 @auth
