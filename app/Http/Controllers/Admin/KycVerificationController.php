@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\KycVerification;
+use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class KycVerificationController extends Controller
@@ -37,13 +39,37 @@ class KycVerificationController extends Controller
         return view('admin.kyc.show', compact('kycVerification'));
     }
 
-    public function approve(KycVerification $kycVerification): RedirectResponse
+    public function approve(KycVerification $kycVerification, AuditService $auditService): RedirectResponse
     {
-        $kycVerification->update([
-            'status'      => 'approved',
-            'verified_by' => auth()->id(),
-            'verified_at' => now(),
-        ]);
+        $oldStatus = $kycVerification->status;
+
+        $profile = $kycVerification->user?->sellerProfile;
+
+        DB::transaction(function () use ($kycVerification, $profile): void {
+            $kycVerification->update([
+                'status'      => 'approved',
+                'verified_by' => auth()->id(),
+                'verified_at' => now(),
+            ]);
+
+            if ($profile) {
+                $profile->update([
+                    'status'              => 'approved',
+                    'verification_status' => 'verified',
+                ]);
+            }
+        });
+
+        $auditService->log(
+            'kyc.approved',
+            $kycVerification,
+            ['status' => $oldStatus, 'user_id' => $kycVerification->user_id],
+            [
+                'status'      => 'approved',
+                'verified_by' => auth()->id(),
+                'granted'     => $profile ? 'seller_product_creation' : false,
+            ]
+        );
 
         return redirect()->route('admin.kyc.index')
             ->with('success', 'KYC verification approved successfully.');
