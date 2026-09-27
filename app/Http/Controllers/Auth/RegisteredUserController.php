@@ -58,6 +58,25 @@ class RegisteredUserController extends Controller
         // Assign the corresponding Spatie role
         $user->assignRole($request->role_type);
 
+        // Sellers must have a seller profile before they can be verified:
+        // product-creation authorisation depends on an approved profile, so a
+        // seller without one could never be granted access. Creating the
+        // profile here (pending) lets an admin approve it later. A failure
+        // must never break the registration itself.
+        if ($user->isSeller() && ! $user->sellerProfile) {
+            try {
+                $user->sellerProfile()->create([
+                    'store_name' => $user->name."'s Store",
+                    'status'     => 'pending',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to create seller profile on registration', [
+                    'user_id'   => $user->id,
+                    'exception' => $e,
+                ]);
+            }
+        }
+
         // Notify active admins in-app about the new registration. This is
         // deliberately in-app only (no Gmail/SMTP), and must never fail the
         // registration itself.

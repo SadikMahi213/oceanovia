@@ -68,7 +68,21 @@
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $user->email }}</td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $user->phone ?? '—' }}</td>
                                             <td class="px-5 py-4">
-                                                <x-inline-edit model="User" :id="$user->id" field="role_type" :value="$user->role_type" type="select" :options="['admin' => 'Admin', 'seller' => 'Seller', 'supplier' => 'Supplier', 'customer' => 'Customer']" />
+                                                @php
+                                                    $roleBadge = match ($user->role_type) {
+                                                        'admin' => 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+                                                        'seller' => 'bg-market-50 text-market-700 dark:bg-market-900/30 dark:text-market-300',
+                                                        'supplier' => 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+                                                        default => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                                                    };
+                                                    $roleLabel = match ($user->role_type) {
+                                                        'admin' => 'Admin',
+                                                        'seller' => 'Seller',
+                                                        'supplier' => 'Supplier',
+                                                        default => 'Customer',
+                                                    };
+                                                @endphp
+                                                <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full {{ $roleBadge }}">{{ $roleLabel }}</span>
                                             </td>
                                             <td class="px-5 py-4 text-center">
                                                 <x-inline-edit model="User" :id="$user->id" field="status" :value="$user->status" type="select" :options="['active' => 'Active', 'inactive' => 'Inactive', 'suspended' => 'Suspended']" />
@@ -164,11 +178,6 @@
                 var reasonEl = document.querySelector(reasonSelector);
                 if (reasonEl) {
                     reason = reasonEl.value;
-                }
-            } else {
-                reason = prompt('Reason (optional):', '');
-                if (reason === null) {
-                    return false;
                 }
             }
             var reasonInput = form.querySelector('input[name="reason"]');

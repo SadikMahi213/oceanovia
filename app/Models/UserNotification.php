@@ -35,6 +35,17 @@ class UserNotification extends Model
         ];
     }
 
+    // ─── Accessors ─────────────────────────────────────────────────────────
+
+    /**
+     * Notification views render $notification->message; the message is stored
+     * inside the JSON data payload so it can stay schema-stable.
+     */
+    public function getMessageAttribute(): ?string
+    {
+        return $this->data['message'] ?? null;
+    }
+
     // ─── Scopes ─────────────────────────────────────────────────────────────
 
     public function scopeUnread($query)

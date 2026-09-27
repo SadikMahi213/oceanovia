@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserNotification;
 use App\Services\AuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -63,7 +65,42 @@ class UserController extends Controller
             'email_verified_at' => $user->email_verified_at->toIso8601String(),
         ]);
 
+        $this->notifyVerified($user);
+
         return back()->with('success', $user->name.' has been verified successfully.');
+    }
+
+    /**
+     * Post an in-app congratulations notification, guarded so repeated
+     * verification actions never produce duplicates.
+     */
+    private function notifyVerified(User $user): void
+    {
+        $title = 'Congratulations! 🎉 Your account has been verified.';
+
+        $exists = UserNotification::query()
+            ->where('notifiable_type', User::class)
+            ->where('notifiable_id', $user->id)
+            ->where('title', $title)
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        UserNotification::create([
+            'id'              => (string) Str::uuid(),
+            'type'            => 'success',
+            'notifiable_type' => User::class,
+            'notifiable_id'   => $user->id,
+            'data'            => [
+                'name'    => $user->name,
+                'message' => 'Your email has been verified. You now have full access to your '.config('app.name').' account.',
+            ],
+            'title' => $title,
+            'icon'  => 'badge-check',
+            'link'  => $user->getDashboardRoute(),
+        ]);
     }
 
     public function updateStatus(User $user, Request $request): RedirectResponse
