@@ -170,6 +170,40 @@ class SellerKycSubmissionTest extends TestCase
             ->assertSee('passport');
     }
 
+    public function test_admin_kyc_show_page_decision_forms_are_not_nested(): void
+    {
+        $admin = $this->createAdmin();
+        $seller = $this->createSeller();
+        $kyc = KycVerification::factory()->create(['user_id' => $seller->id]);
+
+        $response = $this->actingAs($admin)->get(route('admin.kyc.show', $kyc));
+        $response->assertOk();
+
+        $html = $response->getContent();
+        $approveUrl = route('admin.kyc.approve', $kyc);
+        $rejectUrl = route('admin.kyc.reject', $kyc);
+
+        $this->assertSame(1, substr_count($html, 'action="'. $approveUrl .'"'));
+        $this->assertSame(1, substr_count($html, 'action="'. $rejectUrl .'"'));
+
+        // The approve form must never sit inside the reject form (or vice
+        // versa): browsers flatten nested forms so the outer action wins,
+        // which made the Approve button submit to the reject endpoint.
+        $rejectStart = strpos($html, 'action="'. $rejectUrl .'"');
+        $rejectEnd = strpos($html, '</form>', $rejectStart);
+        $this->assertStringNotContainsString(
+            $approveUrl,
+            substr($html, $rejectStart, $rejectEnd - $rejectStart)
+        );
+
+        $approveStart = strpos($html, 'action="'. $approveUrl .'"');
+        $approveEnd = strpos($html, '</form>', $approveStart);
+        $this->assertStringNotContainsString(
+            '<form',
+            substr($html, $approveStart, $approveEnd - $approveStart)
+        );
+    }
+
     public function test_admin_approval_of_submitted_kyc_grants_product_creation(): void
     {
         Storage::fake('public');
