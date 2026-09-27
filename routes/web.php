@@ -209,6 +209,10 @@ Route::middleware(['auth'])->group(function () {
 // ─── Seller Dashboard ───────────────────────────────────────────────────
 Route::prefix('seller')->name('seller.')->middleware(['auth', 'role:seller'])->group(function () {
     Route::get('/dashboard', [App\Http\Controllers\SellerController::class, 'dashboard'])->name('dashboard');
+    // KYC documents for admin verification (creates the review row that
+    // /admin/kyc approves).
+    Route::get('/kyc', [App\Http\Controllers\Seller\KycController::class, 'index'])->name('kyc.index');
+    Route::post('/kyc', [App\Http\Controllers\Seller\KycController::class, 'store'])->name('kyc.store');
     Route::get('/products', [App\Http\Controllers\SellerController::class, 'products'])->name('products.index');
     Route::get('/products/create', [App\Http\Controllers\SellerController::class, 'productCreate'])->name('products.create');
     Route::post('/products', [App\Http\Controllers\SellerController::class, 'productStore'])->name('products.store');
