@@ -50,7 +50,9 @@ class KycVerificationController extends Controller
         $wasApproved = $oldStatus === 'approved';
 
         $user = $kycVerification->user;
-        $profile = $user?->sellerProfile;
+        // Always query the profile so a re-approval on the same User object
+        // never re-uses a stale (null) relation cache and re-creates the row.
+        $profile = $user?->sellerProfile()->first();
         $granted = false;
 
         DB::transaction(function () use ($kycVerification, $user, $profile, &$granted): void {

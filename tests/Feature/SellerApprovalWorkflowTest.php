@@ -261,6 +261,28 @@ class SellerApprovalWorkflowTest extends TestCase
             ->count());
     }
 
+    public function test_approving_twice_on_same_instance_never_creates_duplicate_profiles(): void
+    {
+        $admin = $this->createAdmin();
+        $seller = $this->createSeller();
+        $kyc = KycVerification::factory()->create(['user_id' => $seller->id]);
+
+        $this->actingAs($admin);
+
+        $controller = app(\App\Http\Controllers\Admin\KycVerificationController::class);
+        $audit = app(\App\Services\AuditService::class);
+        $controller->approve($kyc, $audit);
+        $controller->approve($kyc, $audit);
+
+        $this->assertDatabaseHas('seller_profiles', [
+            'user_id'             => $seller->id,
+            'status'              => 'approved',
+            'verification_status' => 'verified',
+        ]);
+        $this->assertSame(1, SellerProfile::where('user_id', $seller->id)->count());
+        $this->assertSame(1, UserNotification::where('notifiable_id', $seller->id)->count());
+    }
+
     public function test_verifying_a_user_creates_congratulations_notification_once(): void
     {
         $admin = $this->createAdmin();
