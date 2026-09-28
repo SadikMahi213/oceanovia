@@ -75,9 +75,9 @@
                     @if($product->seller)
                         <a href="{{ route('products.index', ['seller' => $product->seller->id]) }}" class="inline-flex items-center gap-2 px-3 py-1.5 bg-market-50 dark:bg-market-900/20 rounded-lg mb-4 group">
                             <div class="w-6 h-6 bg-market-200 dark:bg-market-800 rounded-full flex items-center justify-center">
-                                <span class="text-xs font-bold text-market-700 dark:text-market-300">{{ substr($product->seller->name, 0, 1) }}</span>
+                                <span class="text-xs font-bold text-market-700 dark:text-market-300">{{ substr($product->seller->seller_display_name, 0, 1) }}</span>
                             </div>
-                            <span class="text-sm font-medium text-market-700 dark:text-market-300 group-hover:text-market-600 dark:group-hover:text-market-400 transition-colors">{{ $product->seller->name }}</span>
+                            <span class="text-sm font-medium text-market-700 dark:text-market-300 group-hover:text-market-600 dark:group-hover:text-market-400 transition-colors">{{ $product->seller->seller_display_name }}</span>
                         </a>
                     @endif
 

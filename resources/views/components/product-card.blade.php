@@ -36,7 +36,7 @@
         {{-- Seller --}}
         <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">
             @if($product->seller)
-                by <span class="text-market-600 dark:text-market-400">{{ $product->seller->name }}</span>
+                by <span class="text-market-600 dark:text-market-400">{{ $product->seller->seller_display_name }}</span>
             @endif
         </p>
 

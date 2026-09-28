@@ -48,7 +48,7 @@ class CustomerController extends Controller
         $recentOrders = Order::byUser($userId)->with('items')->latest()->take(5)->get();
 
         $recentlyViewed = RecentlyViewed::forUser($userId)
-            ->with('product')
+            ->with('product.seller.sellerProfile.approvedKyc')
             ->whereHas('product', fn ($q) => $q->published())
             ->orderBy('updated_at', 'desc')
             ->take(8)
@@ -62,6 +62,7 @@ class CustomerController extends Controller
         $recommendedProducts = Product::published()
             ->whereNotIn('id', $wishlistProductIds)
             ->where('is_featured', true)
+            ->with('seller.sellerProfile.approvedKyc')
             ->inRandomOrder()->take(6)->get();
 
         $couponCount = Coupon::where('is_active', true)
@@ -291,7 +292,7 @@ class CustomerController extends Controller
     {
         $productIds = Wishlist::where('user_id', auth()->id())->latest()->pluck('product_id');
         $products = Product::published()->whereIn('id', $productIds)
-            ->with('category', 'inventory')
+            ->with('category', 'inventory', 'seller.sellerProfile.approvedKyc')
             ->get()
             ->sortBy(fn($p) => $productIds->search($p->id));
 
@@ -373,7 +374,7 @@ class CustomerController extends Controller
     public function recentlyViewed(): View
     {
         $items = RecentlyViewed::forUser(auth()->id())
-            ->with('product')
+            ->with('product.seller.sellerProfile.approvedKyc')
             ->whereHas('product', fn ($q) => $q->published())
             ->orderBy('updated_at', 'desc')
             ->paginate(20);

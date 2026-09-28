@@ -32,12 +32,12 @@
                                             <img src="{{ asset('storage/' . $seller->sellerProfile->store_logo) }}" alt="{{ $seller->sellerProfile->store_name }}" class="w-full h-full object-cover">
                                         @else
                                             <div class="w-full h-full flex items-center justify-center bg-market-100 dark:bg-market-900/30">
-                                                <span class="text-xl font-bold text-market-600 dark:text-market-400">{{ substr($seller->sellerProfile?->store_name ?? $seller->name, 0, 1) }}</span>
+                                                <span class="text-xl font-bold text-market-600 dark:text-market-400">{{ substr($seller->seller_display_name, 0, 1) }}</span>
                                             </div>
                                         @endif
                                     </div>
                                 </div>
-                                <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ $seller->sellerProfile?->store_name ?? $seller->name }}</h3>
+                                <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ $seller->seller_display_name }}</h3>
                                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{{ $seller->sellerProfile?->description }}</p>
                                 <div class="flex items-center gap-4 mt-4 text-sm text-gray-500 dark:text-gray-400">
                                     <span>{{ $seller->products_count ?? 0 }} products</span>

@@ -39,11 +39,15 @@ class SellerKycSubmissionTest extends TestCase
     private function submitKycForm(User $seller, array $files = []): \Illuminate\Testing\TestResponse
     {
         $payload = array_merge([
-            'document_type'   => 'passport',
-            'document_number' => 'AB1234567',
-            'document_front'  => UploadedFile::fake()->image('front.png'),
-            'document_back'   => UploadedFile::fake()->image('back.png'),
-            'selfie'          => UploadedFile::fake()->image('selfie.png'),
+            'document_type'      => 'passport',
+            'document_number'    => 'AB1234567',
+            'company_name'       => 'Acme Traders LLC',
+            'dba_name'           => 'Acme Store',
+            'tax_id'             => '12-3456789',
+            'resale_certificate' => UploadedFile::fake()->image('certificate.png'),
+            'document_front'     => UploadedFile::fake()->image('front.png'),
+            'document_back'      => UploadedFile::fake()->image('back.png'),
+            'selfie'             => UploadedFile::fake()->image('selfie.png'),
         ], $files);
 
         return $this->actingAs($seller)->post(route('seller.kyc.store'), $payload);

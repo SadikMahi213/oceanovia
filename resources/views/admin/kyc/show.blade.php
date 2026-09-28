@@ -60,6 +60,37 @@
                         </div>
                     </div>
 
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
+                        <div class="p-5 border-b border-gray-100 dark:border-gray-700">
+                            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Business Information</h2>
+                        </div>
+                        <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Company Name</p>
+                                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ $kycVerification->company_name ?? '—' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">DBA Name</p>
+                                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ $kycVerification->dba_name ?? '—' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Tax ID</p>
+                                <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ $kycVerification->tax_id ?? '—' }}</p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Resale Certificate</p>
+                                @if($kycVerification->resaleCertificateUrl)
+                                    <a href="{{ $kycVerification->resaleCertificateUrl }}" target="_blank" class="mt-1 inline-flex items-center gap-1.5 text-sm text-market-600 dark:text-market-400 hover:underline">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        {{ Str::limit(basename($kycVerification->resale_certificate), 40) }}
+                                    </a>
+                                @else
+                                    <p class="mt-1 text-sm text-gray-900 dark:text-white">—</p>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
                     @if($kycVerification->documentFrontUrl || $kycVerification->documentBackUrl)
                         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
                             <div class="p-5 border-b border-gray-100 dark:border-gray-700">

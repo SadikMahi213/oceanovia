@@ -21,7 +21,7 @@ class WishlistController extends Controller
 
             $products = Product::published()
                 ->whereIn('id', $productIds)
-                ->with(['seller', 'category', 'inventory'])
+                ->with(['seller.sellerProfile.approvedKyc', 'category', 'inventory'])
                 ->get()
                 ->sortBy(fn ($p) => $productIds->search($p->id));
         }

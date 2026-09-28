@@ -12,7 +12,7 @@ class ProductController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Product::published()
-            ->with(['seller', 'category']);
+            ->with(['seller.sellerProfile.approvedKyc', 'category']);
 
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->integer('category_id'));
@@ -54,7 +54,7 @@ class ProductController extends Controller
                 'discount_percent' => $product->discount_percent,
                 'rating_avg' => $product->rating_average,
                 'reviews_count' => $product->reviews_count,
-                'seller' => $product->seller?->name,
+                'seller' => $product->seller?->seller_display_name,
                 'category' => $product->category?->name,
             ])->values(),
             'meta' => [
@@ -68,7 +68,7 @@ class ProductController extends Controller
 
     public function show($id): JsonResponse
     {
-        $product = Product::with(['seller.sellerProfile', 'category', 'inventory', 'reviews' => function ($q) {
+        $product = Product::with(['seller.sellerProfile.approvedKyc', 'category', 'inventory', 'reviews' => function ($q) {
             $q->approved()->with('user');
         }])->findOrFail($id);
 
@@ -90,7 +90,7 @@ class ProductController extends Controller
                 'category' => $product->category ? $product->category->only(['id', 'name', 'slug']) : null,
                 'seller' => $product->seller ? [
                     'id' => $product->seller->id,
-                    'name' => $product->seller->name,
+                    'name' => $product->seller->seller_display_name,
                     'store_name' => $product->seller->sellerProfile?->store_name,
                     'avatar' => $product->seller->avatar_url,
                 ] : null,

@@ -38,7 +38,7 @@ class CategoryController extends Controller
 
         $query = Product::published()
             ->whereIn('category_id', $categoryIds)
-            ->with(['seller', 'category', 'inventory', 'reviews']);
+            ->with(['seller.sellerProfile.approvedKyc', 'category', 'inventory', 'reviews']);
 
         $sort = $request->sort;
         switch ($sort) {

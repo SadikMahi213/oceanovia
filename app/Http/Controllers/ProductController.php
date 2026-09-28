@@ -16,7 +16,7 @@ class ProductController extends Controller
         $featuredProducts = Cache::remember('homepage.featured_products', 300, function () {
             return Product::published()
                 ->featured()
-                ->with(['seller', 'category', 'inventory', 'reviews'])
+                ->with(['seller.sellerProfile.approvedKyc', 'category', 'inventory', 'reviews'])
                 ->latest()
                 ->take(8)
                 ->get();
@@ -47,7 +47,7 @@ class ProductController extends Controller
         ]);
 
         $query = Product::published()
-            ->with(['seller', 'category', 'inventory', 'reviews']);
+            ->with(['seller.sellerProfile.approvedKyc', 'category', 'inventory', 'reviews']);
 
         if ($request->filled('category')) {
             $category = Category::where('slug', $request->category)->firstOrFail();
@@ -112,7 +112,7 @@ class ProductController extends Controller
     {
         $sellers = \App\Models\User::ofType('seller')
             ->whereHas('sellerProfile', fn ($q) => $q->approved())
-            ->with(['sellerProfile', 'products' => fn ($q) => $q->published()])
+            ->with(['sellerProfile.approvedKyc', 'products' => fn ($q) => $q->published()])
             ->withCount(['products' => fn ($q) => $q->published()])
             ->paginate(12);
 
@@ -124,7 +124,7 @@ class ProductController extends Controller
         $products = Product::published()
             ->whereNotNull('compare_price')
             ->whereColumn('compare_price', '>', 'price')
-            ->with(['seller', 'category', 'inventory'])
+            ->with(['seller.sellerProfile.approvedKyc', 'category', 'inventory'])
             ->latest()
             ->paginate(12);
 
@@ -138,7 +138,7 @@ class ProductController extends Controller
         $product = Product::published()
             ->where('slug', $slug)
             ->with([
-                'seller.sellerProfile',
+                'seller.sellerProfile.approvedKyc',
                 'category',
                 'inventory',
                 'reviews.user',

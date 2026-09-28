@@ -32,33 +32,45 @@ class KycController extends Controller
         }
 
         $validated = $request->validate([
-            'document_type'   => ['required', Rule::in(['passport', 'drivers_license', 'national_id', 'business_license'])],
-            'document_number' => ['required', 'string', 'max:100'],
-            'document_front'  => ['required', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
-            'document_back'   => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
-            'selfie'          => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'document_type'      => ['required', Rule::in(['passport', 'drivers_license', 'national_id', 'business_license'])],
+            'document_number'    => ['required', 'string', 'max:100'],
+            'company_name'       => ['required', 'string', 'max:255'],
+            'dba_name'           => ['required', 'string', 'max:255'],
+            'tax_id'             => ['required', 'string', 'max:100'],
+            'resale_certificate' => ['required', 'file', 'mimes:jpeg,png,jpg,pdf', 'max:5120'],
+            'document_front'     => ['required', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'document_back'      => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'selfie'             => ['nullable', 'file', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
         ]);
 
         $front  = $request->file('document_front')->store('seller-kyc', 'public');
         $back   = $request->hasFile('document_back') ? $request->file('document_back')->store('seller-kyc', 'public') : null;
         $selfie = $request->hasFile('selfie') ? $request->file('selfie')->store('seller-kyc', 'public') : null;
+        $resale = $request->file('resale_certificate')->store('seller-kyc', 'public');
 
         $data = [
-            'document_type'   => $validated['document_type'],
-            'document_number' => $validated['document_number'],
-            'document_front'  => $front,
-            'document_back'   => $back,
-            'selfie'          => $selfie,
-            'status'          => 'pending',
-            'verified_by'     => null,
-            'verified_at'     => null,
-            'admin_notes'     => null,
+            'document_type'      => $validated['document_type'],
+            'document_number'    => $validated['document_number'],
+            'company_name'       => $validated['company_name'],
+            'dba_name'           => $validated['dba_name'],
+            'tax_id'             => $validated['tax_id'],
+            'resale_certificate' => $resale,
+            'document_front'     => $front,
+            'document_back'      => $back,
+            'selfie'             => $selfie,
+            'status'             => 'pending',
+            'verified_by'        => null,
+            'verified_at'        => null,
+            'admin_notes'        => null,
         ];
 
         if ($latest) {
             // Re-submission (rejected or previously pending) reviews in place
             // so a seller never collects duplicate review rows.
-            $this->deleteOldFiles([$latest->document_front, $latest->document_back, $latest->selfie], [$front, $back, $selfie]);
+            $this->deleteOldFiles(
+                [$latest->document_front, $latest->document_back, $latest->selfie, $latest->resale_certificate],
+                [$front, $back, $selfie, $resale]
+            );
             $latest->update($data);
         } else {
             KycVerification::create(array_merge(['user_id' => auth()->id()], $data));

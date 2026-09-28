@@ -178,6 +178,31 @@ class User extends Authenticatable implements MustVerifyEmail
             : asset('images/no_avatar.png');
     }
 
+    /**
+     * Public-facing seller name shown on product listings.
+     * Prefers the approved KYC DBA name, falls back to the store name,
+     * then the account name. Private fields (company name, tax id,
+     * resale certificate) are never exposed here.
+     */
+    public function getSellerDisplayNameAttribute(): string
+    {
+        $profile = $this->sellerProfile;
+
+        if ($profile) {
+            $dba = $profile->approvedKyc?->dba_name;
+
+            if ($dba) {
+                return $dba;
+            }
+
+            if ($profile->store_name) {
+                return $profile->store_name;
+            }
+        }
+
+        return $this->name;
+    }
+
     // ─── Scopes ─────────────────────────────────────────────────────────────
 
     /**

@@ -14,6 +14,10 @@ class KycVerification extends Model
         'user_id',
         'document_type',
         'document_number',
+        'company_name',
+        'dba_name',
+        'tax_id',
+        'resale_certificate',
         'document_front',
         'document_back',
         'selfie',
@@ -74,5 +78,10 @@ class KycVerification extends Model
     public function getDocumentBackUrlAttribute(): ?string
     {
         return $this->document_back ? asset('storage/' . $this->document_back) : null;
+    }
+
+    public function getResaleCertificateUrlAttribute(): ?string
+    {
+        return $this->resale_certificate ? asset('storage/' . $this->resale_certificate) : null;
     }
 }

@@ -96,8 +96,46 @@
 
                             <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
                                 <div class="p-5 border-b border-gray-100 dark:border-gray-700">
+                                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Business Information</h2>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">These details verify your business. They are reviewed by our team and never shown publicly.</p>
+                                </div>
+                                <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <x-input-label for="company_name" value="Company Name (Legal Name)" />
+                                        <x-text-input id="company_name" name="company_name" type="text" value="{{ old('company_name', $kyc?->company_name) }}" required maxlength="255"
+                                            class="mt-1 block w-full" placeholder="e.g. ACME Traders LLC" />
+                                        <x-input-error :messages="$errors->get('company_name')" class="mt-1" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="dba_name" value="DBA Name (Doing Business As)" />
+                                        <x-text-input id="dba_name" name="dba_name" type="text" value="{{ old('dba_name', $kyc?->dba_name) }}" required maxlength="255"
+                                            class="mt-1 block w-full" placeholder="e.g. ACME Store" />
+                                        <x-input-error :messages="$errors->get('dba_name')" class="mt-1" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="tax_id" value="Tax ID (EIN / ITIN)" />
+                                        <x-text-input id="tax_id" name="tax_id" type="text" value="{{ old('tax_id', $kyc?->tax_id) }}" required maxlength="100"
+                                            class="mt-1 block w-full" placeholder="e.g. 12-3456789" />
+                                        <x-input-error :messages="$errors->get('tax_id')" class="mt-1" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="resale_certificate" value="Resale Certificate" />
+                                        <input type="file" id="resale_certificate" name="resale_certificate" accept=".jpg,.jpeg,.png,.pdf" required
+                                            class="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-market-50 dark:file:bg-market-900/30 file:text-market-700 dark:file:text-market-300 hover:file:bg-market-100 dark:hover:file:bg-market-900/50 cursor-pointer">
+                                        <x-input-error :messages="$errors->get('resale_certificate')" class="mt-1" />
+                                        @if($kyc?->resaleCertificateUrl)
+                                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Uploaded: <a href="{{ $kyc->resaleCertificateUrl }}" target="_blank" class="text-market-600 dark:text-market-400 hover:underline">{{ Str::limit(basename($kyc->resale_certificate), 30) }}</a>
+                                            </p>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+                                <div class="p-5 border-b border-gray-100 dark:border-gray-700">
                                     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Upload Documents</h2>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Accepted formats: JPEG, PNG, WebP (max 5MB each)</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Accepted formats: JPEG, PNG, WebP (max 5MB each), Resale Certificate accepts PDF</p>
                                 </div>
                                 <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>

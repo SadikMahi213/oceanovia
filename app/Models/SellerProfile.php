@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -61,6 +62,17 @@ class SellerProfile extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The latest approved KYC verification for this seller profile.
+     * Only approved reviews carry a public-facing DBA name.
+     */
+    public function approvedKyc(): HasOne
+    {
+        return $this->hasOne(KycVerification::class, 'user_id', 'user_id')
+            ->where('status', 'approved')
+            ->latestOfMany('id');
     }
 
     // ─── Scopes ─────────────────────────────────────────────────────────────
