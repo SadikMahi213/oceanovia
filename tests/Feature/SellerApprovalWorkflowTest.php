@@ -316,10 +316,14 @@ class SellerApprovalWorkflowTest extends TestCase
         $this->approveKyc($admin, $kyc);
 
         $log = EmailLog::where('user_id', $seller->id)->firstOrFail();
-        $this->assertSame('Congratulations! Your Account Has Been Approved', $log->subject);
+        $this->assertSame('Oceanovia — Congratulations! Your Account Has Been Approved', $log->subject);
         $this->assertSame('requested', $log->status);
         $this->assertSame('text', $log->body_type);
-        $this->assertStringContainsString('approved', $log->message);
+        $this->assertStringStartsWith('Hello '.$seller->name.',', $log->message);
+        $this->assertStringContainsString('Congratulations! Your seller account has been approved on Oceanovia.com.', $log->message);
+        $this->assertStringContainsString('You can now add and publish products, manage inventory and pricing, and track orders and payouts.', $log->message);
+        $this->assertStringContainsString('If you have any questions, reply to support@oceanovia.com.', $log->message);
+        $this->assertStringContainsString("Thank you for choosing\nOceanovia.com.\n\"Where Business Flows\"", $log->message);
 
         Queue::assertPushed(SendAdminEmail::class, function (SendAdminEmail $job) use ($log) {
             return $job->emailLog->is($log);

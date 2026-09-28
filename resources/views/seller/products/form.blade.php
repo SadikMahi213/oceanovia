@@ -172,7 +172,8 @@ $title = $edit ? 'Edit Product' : 'Add Product';
                                     <x-input-label for="images" value="Product Images" />
                                     <input type="file" id="images" name="images[]" multiple accept="image/*"
                                         class="mt-1 block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-market-50 dark:file:bg-market-900/30 file:text-market-700 dark:file:text-market-300 hover:file:bg-market-100 dark:hover:file:bg-market-900/50 cursor-pointer">
-                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload multiple images. First image will be used as thumbnail.</p>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Upload multiple images. First image will be used as thumbnail. Maximum {{ $uploadLimits['maxImageMb'] ?? 2 }} MB per image and {{ $uploadLimits['maxTotalMb'] ?? 8 }} MB total.</p>
+                                    <div id="image-upload-error" class="hidden mt-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm text-red-700 dark:text-red-300"></div>
                                     <x-input-error :messages="$errors->get('images')" class="mt-1" />
                                     <x-input-error :messages="$errors->get('images.*')" class="mt-1" />
                                 </div>
@@ -319,6 +320,39 @@ $title = $edit ? 'Edit Product' : 'Add Product';
                             </button>
                         </div>
                     </form>
+
+                    <script>
+                        (function () {
+                            var limits = {
+                                maxImageMb: {{ $uploadLimits['maxImageMb'] ?? 2 }},
+                                maxTotalMb: {{ $uploadLimits['maxTotalMb'] ?? 8 }}
+                            };
+                            var input = document.getElementById('images');
+                            var errorBox = document.getElementById('image-upload-error');
+                            if (!input || !errorBox) return;
+
+                            var form = input.closest('form');
+                            form.addEventListener('submit', function (event) {
+                                var files = input.files;
+                                var oversized = [];
+                                var totalBytes = 0;
+                                for (var i = 0; i < files.length; i++) {
+                                    totalBytes += files[i].size;
+                                    if (files[i].size > limits.maxImageMb * 1024 * 1024) {
+                                        oversized.push(files[i].name);
+                                    }
+                                }
+                                if (oversized.length > 0 || totalBytes > limits.maxTotalMb * 1024 * 1024) {
+                                    event.preventDefault();
+                                    errorBox.textContent = 'Upload failed because the selected file(s) are too large. Please reduce the file size and try again. Maximum allowed is ' + limits.maxImageMb + ' MB per image and ' + limits.maxTotalMb + ' MB total.';
+                                    errorBox.classList.remove('hidden');
+                                    errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                } else {
+                                    errorBox.classList.add('hidden');
+                                }
+                            });
+                        })();
+                    </script>
                 </div>
             </div>
         </div>

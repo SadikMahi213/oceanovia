@@ -146,19 +146,19 @@ class KycVerificationController extends Controller
      */
     private function queueApprovalEmail(User $user): void
     {
-        $subject = 'Congratulations! Your Account Has Been Approved';
+        $subject = 'Oceanovia — Congratulations! Your Account Has Been Approved';
 
         if (EmailLog::query()->where('user_id', $user->id)->where('subject', $subject)->exists()) {
             return;
         }
 
-        $appName = (string) config('app.name');
-        $body = "Hi {$user->name},"."\n\n"
-            ."Congratulations! Your seller account has been approved on {$appName}."."\n\n"
-            .'You can now add and publish products, manage inventory and pricing, and track orders and payouts.'."\n"
-            .'If you have any questions, reply to this email and our team will help you.'."\n\n"
-            ."Happy selling!\n"
-            ."The {$appName} Team";
+        $body = "Hello {$user->name},"."\n\n"
+            ."Congratulations! Your seller account has been approved on Oceanovia.com."."\n\n"
+            .'You can now add and publish products, manage inventory and pricing, and track orders and payouts.'."\n\n"
+            ."If you have any questions, reply to support@oceanovia.com."."\n\n"
+            ."Thank you for choosing\n"
+            ."Oceanovia.com.\n"
+            .'"Where Business Flows"';
 
         $log = EmailLog::create([
             'user_id'         => $user->id,

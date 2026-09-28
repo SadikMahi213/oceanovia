@@ -36,6 +36,19 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SellerController extends Controller
 {
+    /**
+     * Per-image size ceiling enforced by Laravel validation and mirrored
+     * client-side on the product form (multiples of 1024 KB).
+     */
+    public const MAX_IMAGE_SIZE_KB = 2048;
+
+    /**
+     * Total multipart upload ceiling (in MB). Matches the server's PHP
+     * post_max_size / nginx client_max_body_size so a request that passes
+     * the per-image rule above is accepted end-to-end.
+     */
+    public const MAX_TOTAL_UPLOAD_MB = 8;
+
     public function dashboard(): View
     {
         $sellerId = auth()->id();
@@ -163,7 +176,11 @@ class SellerController extends Controller
     public function productCreate(): View
     {
         $categories = \App\Models\Category::active()->ordered()->get();
-        return view('seller.products.form', ['product' => null, 'categories' => $categories]);
+        return view('seller.products.form', [
+            'product'      => null,
+            'categories'   => $categories,
+            'uploadLimits' => $this->uploadLimits(),
+        ]);
     }
 
     public function productStore(Request $request): RedirectResponse
@@ -198,7 +215,7 @@ class SellerController extends Controller
             'meta_title'       => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'images'           => ['nullable', 'array'],
-            'images.*'         => ['image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'images.*'         => ['image', 'mimes:jpeg,png,jpg,webp', 'max:'.self::MAX_IMAGE_SIZE_KB],
         ]);
 
         $validated['seller_id'] = auth()->id();
@@ -258,7 +275,11 @@ class SellerController extends Controller
         }
 
         $categories = \App\Models\Category::active()->ordered()->get();
-        return view('seller.products.form', compact('product', 'categories'));
+        return view('seller.products.form', [
+            'product'      => $product,
+            'categories'   => $categories,
+            'uploadLimits' => $this->uploadLimits(),
+        ]);
     }
 
     public function productUpdate(Request $request, Product $product): RedirectResponse
@@ -292,7 +313,7 @@ class SellerController extends Controller
             'meta_title'       => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'images'           => ['nullable', 'array'],
-            'images.*'         => ['image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'images.*'         => ['image', 'mimes:jpeg,png,jpg,webp', 'max:'.self::MAX_IMAGE_SIZE_KB],
         ]);
 
         // Persist everything atomically so a mid-update failure can never
@@ -1209,5 +1230,18 @@ class SellerController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Password updated successfully.');
+    }
+
+    /**
+     * Resolve the upload ceilings the product form needs to show the seller
+     * the exact configured limits and guard oversized submissions client-side.
+     */
+    private function uploadLimits(): array
+    {
+        return [
+            'maxImageMb'    => self::MAX_IMAGE_SIZE_KB / 1024,
+            'maxTotalMb'    => self::MAX_TOTAL_UPLOAD_MB,
+            'maxTotalBytes' => self::MAX_TOTAL_UPLOAD_MB * 1024 * 1024,
+        ];
     }
 }
