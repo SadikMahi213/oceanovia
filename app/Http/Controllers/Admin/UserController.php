@@ -48,6 +48,8 @@ class UserController extends Controller
 
     public function show(User $user): View
     {
+        $user->load('sellerProfile.approvedKyc');
+
         return view('admin.users.show', compact('user'));
     }
 

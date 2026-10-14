@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\KycVerification;
 use App\Models\Order;
+use App\Models\SellerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -197,6 +199,77 @@ class AdminUsersTest extends TestCase
 
         $this->assertSoftDeleted('users', ['id' => $user->id]);
         $this->assertDatabaseHas('orders', ['id' => $order->id, 'user_id' => $user->id]);
+    }
+
+    public function test_admin_user_detail_shows_store_details_for_seller(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $seller = User::factory()->create([
+            'role_type' => 'seller',
+            'status' => 'active',
+        ]);
+
+        SellerProfile::factory()->create([
+            'user_id' => $seller->id,
+            'store_name' => 'Bright Star Store',
+            'store_slug' => 'bright-star-store',
+            'status' => 'approved',
+            'verification_status' => 'verified',
+            'commission_rate' => 12.5,
+            'phone' => '+1 555 222-3333',
+            'website' => 'https://brightstar.example',
+            'address' => '12 Market Street, Austin, TX',
+        ]);
+
+        KycVerification::factory()->create([
+            'user_id' => $seller->id,
+            'status' => 'approved',
+            'dba_name' => 'Bright Star DBA',
+            'company_name' => 'Bright Star LLC',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.users.show', $seller))
+            ->assertOk();
+
+        $response->assertSee('Store name');
+        $response->assertSee('Bright Star Store');
+        $response->assertSee('bright-star-store');
+        $response->assertSee('12.50%');
+        $response->assertSee('+1 555 222-3333');
+        $response->assertSee('https://brightstar.example');
+        $response->assertSee('12 Market Street, Austin, TX');
+        $response->assertSee('Bright Star DBA');
+        $response->assertSee('Bright Star LLC');
+        $response->assertSee('View KYC');
+    }
+
+    public function test_admin_user_detail_hides_store_section_for_non_seller(): void
+    {
+        $admin = $this->makeAdmin();
+        $customer = $this->makeRegisteredUser();
+
+        $this->actingAs($admin)
+            ->get(route('admin.users.show', $customer))
+            ->assertOk()
+            ->assertDontSee('Store slug')
+            ->assertDontSee('DBA / Legal name (KYC)');
+    }
+
+    public function test_admin_user_detail_handles_seller_without_store_profile(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $seller = User::factory()->create([
+            'role_type' => 'seller',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.users.show', $seller))
+            ->assertOk()
+            ->assertSee('This seller has not set up a store profile yet.');
     }
 
     public function test_backend_failure_returns_error_flash_and_keeps_user(): void

@@ -111,6 +111,90 @@
                         </div>
                     </div>
 
+                    @if($user->role_type === 'seller')
+                        @php
+                            $profile = $user->sellerProfile;
+                            $kyc = $profile?->approvedKyc;
+                            $storeStatusBadge = match($profile?->status) {
+                                'approved' => 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+                                'pending' => 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
+                                'rejected' => 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
+                                default => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+                            };
+                        @endphp
+                        {{-- Store details --}}
+                        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
+                            <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-4">
+                                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Store</h3>
+                                @if($profile)
+                                    <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full {{ $storeStatusBadge }}">{{ ucfirst($profile->status) }}</span>
+                                @endif
+                            </div>
+
+                            @if($profile)
+                                <div class="p-5 flex flex-col sm:flex-row gap-5">
+                                    <div class="shrink-0">
+                                        @if($profile->logo_url)
+                                            <img src="{{ $profile->logo_url }}" alt="{{ $profile->store_name }}" class="w-16 h-16 rounded-xl object-cover border border-gray-100 dark:border-gray-700">
+                                        @else
+                                            <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-market-500 to-market-700 flex items-center justify-center">
+                                                <span class="text-white font-bold text-xl">{{ substr($profile->store_name ?: 'S', 0, 1) }}</span>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <dl class="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+                                        <div class="sm:col-span-2">
+                                            <dt class="text-xs text-gray-500 dark:text-gray-400">Store name</dt>
+                                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ $profile->store_name ?: '—' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs text-gray-500 dark:text-gray-400">Store slug</dt>
+                                            <dd class="text-sm font-medium text-gray-900 dark:text-white break-all">{{ $profile->store_slug ?: '—' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs text-gray-500 dark:text-gray-400">Verification status</dt>
+                                            <dd class="text-sm font-medium text-gray-900 dark:text-white capitalize">{{ $profile->verification_status ? str_replace('_', ' ', $profile->verification_status) : '—' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs text-gray-500 dark:text-gray-400">Commission rate</dt>
+                                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ $profile->commission_rate !== null ? $profile->commission_rate.'%' : '—' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs text-gray-500 dark:text-gray-400">Store phone</dt>
+                                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ $profile->phone ?: '—' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs text-gray-500 dark:text-gray-400">Website</dt>
+                                            <dd class="text-sm font-medium text-gray-900 dark:text-white break-all">{{ $profile->website ?: '—' }}</dd>
+                                        </div>
+                                        <div class="sm:col-span-2">
+                                            <dt class="text-xs text-gray-500 dark:text-gray-400">Address</dt>
+                                            <dd class="text-sm font-medium text-gray-900 dark:text-white">{{ $profile->address ?: '—' }}</dd>
+                                        </div>
+                                        <div class="sm:col-span-2">
+                                            <dt class="text-xs text-gray-500 dark:text-gray-400">DBA / Legal name (KYC)</dt>
+                                            <dd class="text-sm font-medium text-gray-900 dark:text-white">
+                                                @if($kyc)
+                                                    {{ $kyc->dba_name ?: ($kyc->company_name ?: '—') }}
+                                                    @if($kyc->dba_name && $kyc->company_name)
+                                                        <span class="text-xs text-gray-500 dark:text-gray-400">({{ $kyc->company_name }})</span>
+                                                    @endif
+                                                    <a href="{{ route('admin.kyc.show', $kyc) }}" class="ml-2 text-xs text-market-600 dark:text-market-400 hover:underline">View KYC</a>
+                                                @else
+                                                    <span class="text-gray-400">No approved KYC</span>
+                                                @endif
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                            @else
+                                <div class="p-5">
+                                    <p class="text-sm text-gray-400 dark:text-gray-500">This seller has not set up a store profile yet.</p>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {{-- Account information --}}
                         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
