@@ -50,7 +50,7 @@
                             <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-5">
                                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-3">Seller Details</h3>
                                 <div class="space-y-2 text-sm">
-                                    <p class="text-gray-700 dark:text-gray-300"><span class="text-gray-500 dark:text-gray-400">Name:</span> {{ $commission->seller?->name ?? '—' }}</p>
+                                    <p class="text-gray-700 dark:text-gray-300"><span class="text-gray-500 dark:text-gray-400">Store:</span> {{ $commission->seller?->seller_display_name ?? '—' }}</p>
                                     <p class="text-gray-700 dark:text-gray-300"><span class="text-gray-500 dark:text-gray-400">Email:</span> {{ $commission->seller?->email ?? '—' }}</p>
                                 </div>
                             </div>

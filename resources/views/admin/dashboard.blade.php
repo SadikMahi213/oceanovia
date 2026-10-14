@@ -277,8 +277,8 @@
                                 @forelse($topSellers as $payout)
                                     <div class="flex items-center justify-between px-5 py-3">
                                         <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-market-500 to-market-700 flex items-center justify-center text-white font-bold text-xs">{{ substr($payout->seller?->name ?? '?', 0, 1) }}</div>
-                                            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $payout->seller?->name ?? 'Deleted Seller' }}</span>
+                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-market-500 to-market-700 flex items-center justify-center text-white font-bold text-xs">{{ substr($payout->seller?->seller_display_name ?? '?', 0, 1) }}</div>
+                                            <span class="text-sm font-medium text-gray-900 dark:text-white">{{ $payout->seller?->seller_display_name ?? 'Deleted Seller' }}</span>
                                         </div>
                                         <span class="text-sm font-semibold text-gray-900 dark:text-white">${{ number_format($payout->total_paid, 2) }}</span>
                                     </div>

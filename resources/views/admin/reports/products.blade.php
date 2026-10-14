@@ -53,7 +53,7 @@
                                                     <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $product->name }}</p>
                                                 </div>
                                             </td>
-                                            <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{{ $product->seller?->name ?? '—' }}</td>
+                                            <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{{ $product->seller?->seller_display_name ?? '—' }}</td>
                                             <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{{ $product->category?->name ?? '—' }}</td>
                                             <td class="px-5 py-4 text-sm text-gray-900 dark:text-white text-right font-medium">{{ $product->total_sold }}</td>
                                             <td class="px-5 py-4 text-sm text-gray-900 dark:text-white text-right font-medium">${{ number_format($product->revenue, 2) }}</td>

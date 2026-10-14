@@ -239,9 +239,9 @@ class SellerBusinessKycFieldsTest extends TestCase
         $this->assertSame('12-3456789', $fresh->tax_id);
     }
 
-    // ─── Public display (approved DBA) ──────────────────────────────────────
+    // ─── Public display (store name preferred) ──────────────────────────────
 
-    public function test_public_product_listing_shows_approved_dba_name(): void
+    public function test_public_product_listing_shows_store_name_over_dba(): void
     {
         $seller = $this->makeVerifiedSellerWithDba();
         Product::factory()->create([
@@ -253,8 +253,8 @@ class SellerBusinessKycFieldsTest extends TestCase
         $this->get(route('products.index'))
             ->assertOk()
             ->assertSee('DBA Display Product')
-            ->assertSee('Acme Store')
-            ->assertDontSee('Old Store Name');
+            ->assertSee('Old Store Name')
+            ->assertDontSee('Acme Store');
     }
 
     public function test_public_product_listing_hides_private_kyc_data(): void
@@ -274,7 +274,7 @@ class SellerBusinessKycFieldsTest extends TestCase
             ->assertDontSee('certificate.pdf');
     }
 
-    public function test_product_detail_page_shows_dba_and_hides_private_data(): void
+    public function test_product_detail_page_shows_store_name_and_hides_private_data(): void
     {
         $seller = $this->makeVerifiedSellerWithDba();
         $product = Product::factory()->create([
@@ -286,7 +286,8 @@ class SellerBusinessKycFieldsTest extends TestCase
         $this->get(route('products.show', $product->slug))
             ->assertOk()
             ->assertSee('DBA Detail Product')
-            ->assertSee('Acme Store')
+            ->assertSee('Old Store Name')
+            ->assertDontSee('Acme Store')
             ->assertDontSee('12-3456789')
             ->assertDontSee('Acme Traders LLC')
             ->assertDontSee('certificate.pdf');
@@ -294,7 +295,7 @@ class SellerBusinessKycFieldsTest extends TestCase
 
     // ─── API display ────────────────────────────────────────────────────────
 
-    public function test_api_product_index_exposes_dba_not_private_kyc_data(): void
+    public function test_api_product_index_exposes_store_name_not_private_kyc_data(): void
     {
         $seller = $this->makeVerifiedSellerWithDba();
         Product::factory()->create([
@@ -305,14 +306,15 @@ class SellerBusinessKycFieldsTest extends TestCase
 
         $response = $this->getJson('/api/v1/products')->assertOk();
 
-        $this->assertSame('Acme Store', $response->json('data.0.seller'));
+        $this->assertSame('Old Store Name', $response->json('data.0.seller'));
         $content = $response->getContent();
+        $this->assertStringNotContainsString('Acme Store', $content);
         $this->assertStringNotContainsString('12-3456789', $content);
         $this->assertStringNotContainsString('Acme Traders LLC', $content);
         $this->assertStringNotContainsString('certificate.pdf', $content);
     }
 
-    public function test_api_product_show_exposes_dba_not_private_kyc_data(): void
+    public function test_api_product_show_exposes_store_name_not_private_kyc_data(): void
     {
         $seller = $this->makeVerifiedSellerWithDba();
         $product = Product::factory()->create([
@@ -323,8 +325,9 @@ class SellerBusinessKycFieldsTest extends TestCase
 
         $response = $this->getJson('/api/v1/products/' . $product->id)->assertOk();
 
-        $this->assertSame('Acme Store', $response->json('data.seller.name'));
+        $this->assertSame('Old Store Name', $response->json('data.seller.name'));
         $content = $response->getContent();
+        $this->assertStringNotContainsString('Acme Store', $content);
         $this->assertStringNotContainsString('12-3456789', $content);
         $this->assertStringNotContainsString('Acme Traders LLC', $content);
         $this->assertStringNotContainsString('certificate.pdf', $content);

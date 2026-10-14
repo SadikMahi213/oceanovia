@@ -55,7 +55,7 @@
                                             <td class="px-5 py-4">
                                                 <span class="text-sm font-mono font-medium text-gray-900 dark:text-white">{{ $commission->order?->order_number ?? '—' }}</span>
                                             </td>
-                                            <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{{ $commission->seller?->name ?? '—' }}</td>
+                                            <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{{ $commission->seller?->seller_display_name ?? '—' }}</td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400 text-right">{{ number_format($commission->rate * 100, 2) }}%</td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400 text-right">${{ number_format($commission->subtotal, 2) }}</td>
                                             <td class="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($commission->amount, 2) }}</td>

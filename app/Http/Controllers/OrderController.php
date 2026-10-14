@@ -22,7 +22,7 @@ class OrderController extends Controller
     {
         $order = Order::with([
             'items.product',
-            'items.seller',
+            'items.seller.sellerProfile.approvedKyc',
             'shippingAddress',
             'billingAddress',
         ])

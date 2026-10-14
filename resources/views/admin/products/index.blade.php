@@ -85,7 +85,7 @@
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $product->seller?->name ?? '—' }}</td>
+                                            <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $product->seller?->seller_display_name ?? '—' }}</td>
                                             <td class="px-5 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $product->category?->name ?? '—' }}</td>
                                             <td class="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($product->price, 2) }}</td>
                                             <td class="px-5 py-4 text-sm text-right">

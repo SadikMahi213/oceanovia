@@ -41,7 +41,7 @@
                                     @forelse($payouts as $payout)
                                         <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                             <td class="px-5 py-4">
-                                                <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $payout->seller?->name }}</div>
+                                                <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $payout->seller?->seller_display_name }}</div>
                                                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ $payout->seller?->email }}</div>
                                             </td>
                                             <td class="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($payout->amount, 2) }}</td>

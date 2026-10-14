@@ -141,10 +141,10 @@
                                     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Seller</h2>
                                 </div>
                                 <div class="p-5 space-y-2">
-                                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $payout->seller?->name ?? '—' }}</p>
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $payout->seller?->seller_display_name ?? '—' }}</p>
                                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ $payout->seller?->email }}</p>
-                                    @if($payout->seller?->shop_name)
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ $payout->seller->shop_name }}</p>
+                                    @if($payout->seller?->name)
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ $payout->seller->name }}</p>
                                     @endif
                                 </div>
                             </div>

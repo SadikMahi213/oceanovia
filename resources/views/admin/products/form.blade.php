@@ -121,7 +121,7 @@ $title = $edit ? 'Edit Product' : 'Add Product';
                                 </div>
                                 @if($edit)
                                     <div class="text-xs text-gray-500 dark:text-gray-400">
-                                        Seller: {{ $product->seller?->name ?? '—' }} (ID: {{ $product->seller_id }})
+                                        Store: {{ $product->seller?->seller_display_name ?? '—' }} (ID: {{ $product->seller_id }})
                                     </div>
                                 @endif
                             </div>

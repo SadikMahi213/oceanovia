@@ -39,6 +39,7 @@
                                         <thead>
                                             <tr class="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">
                                                 <th class="px-5 py-3">Product</th>
+                                                <th class="px-5 py-3">Store</th>
                                                 <th class="px-5 py-3 text-right">Price</th>
                                                 <th class="px-5 py-3 text-right">Qty</th>
                                                 <th class="px-5 py-3 text-right">Subtotal</th>
@@ -61,6 +62,7 @@
                                                             </div>
                                                         </div>
                                                     </td>
+                                                    <td class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{{ $item->seller?->seller_display_name ?? '—' }}</td>
                                                     <td class="px-5 py-4 text-sm text-gray-900 dark:text-white text-right">${{ number_format($item->price, 2) }}</td>
                                                     <td class="px-5 py-4 text-sm text-gray-900 dark:text-white text-right">{{ $item->quantity }}</td>
                                                     <td class="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($item->subtotal, 2) }}</td>
@@ -69,29 +71,29 @@
                                         </tbody>
                                         <tfoot class="bg-gray-50 dark:bg-gray-800/50">
                                             <tr>
-                                                <td colspan="3" class="px-5 py-3 text-sm text-gray-500 dark:text-gray-400 text-right">Subtotal</td>
+                                                <td colspan="4" class="px-5 py-3 text-sm text-gray-500 dark:text-gray-400 text-right">Subtotal</td>
                                                 <td class="px-5 py-3 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($order->subtotal, 2) }}</td>
                                             </tr>
                                             @if($order->shipping_cost > 0)
                                                 <tr>
-                                                    <td colspan="3" class="px-5 py-3 text-sm text-gray-500 dark:text-gray-400 text-right">Shipping</td>
+                                                    <td colspan="4" class="px-5 py-3 text-sm text-gray-500 dark:text-gray-400 text-right">Shipping</td>
                                                     <td class="px-5 py-3 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($order->shipping_cost, 2) }}</td>
                                                 </tr>
                                             @endif
                                             @if($order->tax > 0)
                                                 <tr>
-                                                    <td colspan="3" class="px-5 py-3 text-sm text-gray-500 dark:text-gray-400 text-right">Tax</td>
+                                                    <td colspan="4" class="px-5 py-3 text-sm text-gray-500 dark:text-gray-400 text-right">Tax</td>
                                                     <td class="px-5 py-3 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($order->tax, 2) }}</td>
                                                 </tr>
                                             @endif
                                             @if($order->discount > 0)
                                                 <tr>
-                                                    <td colspan="3" class="px-5 py-3 text-sm text-gray-500 dark:text-gray-400 text-right">Discount</td>
+                                                    <td colspan="4" class="px-5 py-3 text-sm text-gray-500 dark:text-gray-400 text-right">Discount</td>
                                                     <td class="px-5 py-3 text-sm font-medium text-green-600 dark:text-green-400 text-right">-${{ number_format($order->discount, 2) }}</td>
                                                 </tr>
                                             @endif
                                             <tr class="border-t border-gray-200 dark:border-gray-700">
-                                                <td colspan="3" class="px-5 py-3 text-sm font-semibold text-gray-900 dark:text-white text-right">Total</td>
+                                                <td colspan="4" class="px-5 py-3 text-sm font-semibold text-gray-900 dark:text-white text-right">Total</td>
                                                 <td class="px-5 py-3 text-sm font-bold text-gray-900 dark:text-white text-right">${{ number_format($order->total, 2) }}</td>
                                             </tr>
                                         </tfoot>

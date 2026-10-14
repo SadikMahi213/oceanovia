@@ -179,8 +179,8 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Public-facing seller name shown on product listings.
-     * Prefers the approved KYC DBA name, falls back to the store name,
+     * Public-facing seller name shown on product listings and orders.
+     * Prefers the store name, falls back to the approved KYC DBA name,
      * then the account name. Private fields (company name, tax id,
      * resale certificate) are never exposed here.
      */
@@ -189,14 +189,14 @@ class User extends Authenticatable implements MustVerifyEmail
         $profile = $this->sellerProfile;
 
         if ($profile) {
-            $dba = $profile->approvedKyc?->dba_name;
-
-            if ($dba) {
-                return $dba;
+            if (filled($profile->store_name)) {
+                return $profile->store_name;
             }
 
-            if ($profile->store_name) {
-                return $profile->store_name;
+            $dba = $profile->approvedKyc?->dba_name;
+
+            if (filled($dba)) {
+                return $dba;
             }
         }
 
