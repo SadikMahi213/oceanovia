@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use App\Events\OrderPlaced;
 use App\Http\Middleware\RoleMiddleware;
+use App\Listeners\SendOrderPlacedNotification;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -17,6 +20,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Order placement notifications (customer confirmation + admin alert).
+        Event::listen(OrderPlaced::class, SendOrderPlacedNotification::class);
+
         // API rate limiting
         RateLimiter::for('api', fn (Request $request) =>
             Limit::perMinute(100)->by($request->user()?->id ?: $request->ip())

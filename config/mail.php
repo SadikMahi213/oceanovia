@@ -115,4 +115,17 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin notification recipient
+    |--------------------------------------------------------------------------
+    |
+    | Single inbox that receives admin alerts (new orders, COD shortfalls).
+    | When unset, the oldest admin account's email is used so alerts still
+    | reach exactly one recipient instead of fanning out to every admin.
+    |
+    */
+
+    'admin_address' => env('ADMIN_ALERT_EMAIL'),
+
 ];

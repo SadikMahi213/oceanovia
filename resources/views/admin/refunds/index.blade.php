@@ -16,6 +16,7 @@
                                 <option value="">All Statuses</option>
                                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                                 <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
+                                <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
                                 <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
                             </select>
                         </form>
@@ -54,6 +55,7 @@
                                                     $badge = match($refund->status) {
                                                         'pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
                                                         'approved' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+                                                        'completed' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
                                                         'rejected' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
                                                         default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
                                                     };
@@ -67,13 +69,19 @@
                                                         View
                                                     </a>
                                                     @if($refund->status === 'pending')
-                                                        <form method="POST" action="{{ route('admin.refunds.approve', $refund) }}" class="inline">
-                                                            @csrf
-                                                            @method('PATCH')
-                                                            <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors">
-                                                                Approve
-                                                            </button>
-                                                        </form>
+                                                        @if($refund->order?->payment_method === 'stripe')
+                                                            <form method="POST" action="{{ route('admin.refunds.approve', $refund) }}" class="inline">
+                                                                @csrf
+                                                                @method('PATCH')
+                                                                <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors">
+                                                                    Approve
+                                                                </button>
+                                                            </form>
+                                                        @else
+                                                            <a href="{{ route('admin.refunds.show', $refund) }}" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg transition-colors">
+                                                                Review
+                                                            </a>
+                                                        @endif
                                                         <button type="button" onclick="document.getElementById('reject-modal-{{ $refund->id }}').classList.remove('hidden')" class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors">
                                                             Reject
                                                         </button>

@@ -18,22 +18,20 @@ class CommissionService
 
     public function createCommissions(Order $order): void
     {
-        if (Commission::where('order_id', $order->id)->exists()) {
-            return;
-        }
-
         foreach ($order->items as $item) {
             $rate = $this->getSellerCommissionRate($item->seller_id);
 
-            Commission::create([
-                'order_id'      => $order->id,
-                'order_item_id' => $item->id,
-                'seller_id'     => $item->seller_id,
-                'rate'          => $rate,
-                'subtotal'      => $item->subtotal,
-                'amount'        => round($item->subtotal * $rate / 100, 2),
-                'status'        => 'pending',
-            ]);
+            Commission::firstOrCreate(
+                ['order_item_id' => $item->id],
+                [
+                    'order_id'  => $order->id,
+                    'seller_id' => $item->seller_id,
+                    'rate'      => $rate,
+                    'subtotal'  => $item->subtotal,
+                    'amount'    => round($item->subtotal * $rate / 100, 2),
+                    'status'    => 'pending',
+                ]
+            );
         }
     }
 

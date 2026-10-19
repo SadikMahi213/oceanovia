@@ -17,11 +17,15 @@ class Refund extends Model
         'amount',
         'reason',
         'status',
+        'refund_method',
         'approved_by',
         'approved_notes',
         'rejection_reason',
         'approved_at',
         'rejected_at',
+        'completed_by',
+        'completed_at',
+        'completion_notes',
     ];
 
     protected function casts(): array
@@ -30,6 +34,7 @@ class Refund extends Model
             'amount'       => 'decimal:2',
             'approved_at'  => 'datetime',
             'rejected_at'  => 'datetime',
+            'completed_at' => 'datetime',
         ];
     }
 
@@ -51,6 +56,16 @@ class Refund extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function completer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
     }
 
     public function scopePending($query)

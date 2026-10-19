@@ -15,6 +15,7 @@ use App\Models\ReturnRequest;
 use App\Models\Review;
 use App\Models\UserNotification;
 use App\Models\Wishlist;
+use App\Services\OrderCancellationService;
 use App\Services\ProcurementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -246,10 +247,13 @@ class CustomerController extends Controller
         }
 
         $validated = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
-        $order->update(['status' => 'cancelled', 'cancelled_at' => now(), 'cancellation_reason' => $validated['reason'] ?? null]);
-        $order->items()->update(['status' => 'cancelled']);
 
-        app(ProcurementService::class)->syncForOrder($order);
+        app(OrderCancellationService::class)->cancel(
+            $order,
+            $validated['reason'] ?? null,
+            null,
+            auth()->id(),
+        );
 
         return redirect()->back()->with('success', 'Order cancelled successfully.');
     }

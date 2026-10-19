@@ -23,6 +23,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\UserNotification;
 use App\Services\AuditService;
+use App\Services\OrderCancellationService;
 use App\Services\ProcurementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -405,12 +406,15 @@ class SupplierController extends Controller
         }
 
         $validated = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
-        $order->items()->where('supplier_id', auth()->id())->update([
-            'status' => 'cancelled',
-        ]);
-        $order->update(['cancellation_reason' => $validated['reason'], 'cancelled_at' => now(), 'status' => 'cancelled']);
 
-        app(ProcurementService::class)->syncForOrder($order);
+        $itemIds = $order->items()->where('supplier_id', auth()->id())->pluck('id')->all();
+
+        app(OrderCancellationService::class)->cancel(
+            $order,
+            $validated['reason'],
+            $itemIds,
+            auth()->id(),
+        );
 
         return redirect()->back()->with('success', 'Order rejected.');
     }

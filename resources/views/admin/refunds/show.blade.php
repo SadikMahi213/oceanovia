@@ -16,6 +16,7 @@
                                     $badge = match($refund->status) {
                                         'pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
                                         'approved' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+                                        'completed' => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
                                         'rejected' => 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
                                         default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
                                     };
@@ -25,10 +26,20 @@
                             <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Requested on {{ $refund->created_at->format('F d, Y \a\t g:i A') }}</p>
                         </div>
                         @if($refund->status === 'pending')
-                            <div class="flex items-center gap-2">
-                                <form method="POST" action="{{ route('admin.refunds.approve', $refund) }}" class="inline">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <form method="POST" action="{{ route('admin.refunds.approve', $refund) }}" class="flex flex-wrap items-center gap-2">
                                     @csrf
                                     @method('PATCH')
+                                    @if($refund->order?->payment_method !== 'stripe')
+                                        <select name="refund_method" required
+                                            class="rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:border-market-500 focus:ring-market-500">
+                                            <option value="">Refund method…</option>
+                                            <option value="cash">Cash</option>
+                                            <option value="bank_transfer">Bank transfer</option>
+                                            <option value="store_credit">Store credit</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    @endif
                                     <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                         Approve Refund
@@ -39,6 +50,14 @@
                                     Reject Refund
                                 </button>
                             </div>
+                        @elseif($refund->status === 'approved' && $refund->order?->payment_method !== 'stripe')
+                            <form method="POST" action="{{ route('admin.refunds.complete', $refund) }}" class="flex items-center gap-2">
+                                @csrf
+                                <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Complete Refund
+                                </button>
+                            </form>
                         @endif
                     </div>
 
@@ -131,6 +150,12 @@
                                         <div class="flex items-center justify-between">
                                             <span class="text-sm text-gray-500 dark:text-gray-400">Approved At</span>
                                             <span class="text-sm text-gray-900 dark:text-white">{{ $refund->approved_at->format('M d, Y') }}</span>
+                                        </div>
+                                    @endif
+                                    @if($refund->completed_at)
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm text-gray-500 dark:text-gray-400">Completed At</span>
+                                            <span class="text-sm text-gray-900 dark:text-white">{{ $refund->completed_at->format('M d, Y') }}</span>
                                         </div>
                                     @endif
                                 </div>

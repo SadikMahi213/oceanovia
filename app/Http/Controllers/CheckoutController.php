@@ -9,8 +9,10 @@ use App\Models\Cart;
 use App\Models\Inventory;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\CodCollectionService;
 use App\Services\CommissionService;
 use App\Services\CouponService;
+use App\Services\OrderCancellationService;
 use App\Services\PayoutService;
 use App\Services\ProcurementService;
 use App\Services\ShippingService;
@@ -206,6 +208,9 @@ class CheckoutController extends Controller
         // COD is confirmed immediately -> create procurement orders now
         app(ProcurementService::class)->createForOrder($order);
 
+        // COD: open one collection record per line for later admin verification
+        app(CodCollectionService::class)->createForOrder($order);
+
         ProcessOrder::dispatch($order);
 
         return redirect()->route('orders.show', $order)
@@ -341,14 +346,8 @@ class CheckoutController extends Controller
                 ->with('error', 'This order has already been paid and cannot be cancelled.');
         }
 
-        $order->update([
-            'status' => 'cancelled',
-            'cancelled_at' => now(),
-            'cancellation_reason' => 'Payment cancelled',
-        ]);
-
-        // Release supplier source reservations and cancel any open procurements
-        app(ProcurementService::class)->cancelForOrder($order, 'Payment cancelled');
+        // Restore inventory, release reservations, reverse unpaid commissions
+        app(OrderCancellationService::class)->cancel($order, 'Payment cancelled', null, auth()->id());
 
         return redirect()->route('cart.index')->with('error', 'Payment was cancelled. Your cart items are still saved.');
     }

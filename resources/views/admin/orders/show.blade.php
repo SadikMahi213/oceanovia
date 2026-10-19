@@ -43,6 +43,9 @@
                                                 <th class="px-5 py-3 text-right">Price</th>
                                                 <th class="px-5 py-3 text-right">Qty</th>
                                                 <th class="px-5 py-3 text-right">Subtotal</th>
+                                                @if($order->payment_method === 'cod')
+                                                    <th class="px-5 py-3">COD</th>
+                                                @endif
                                             </tr>
                                         </thead>
                                         <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -66,6 +69,27 @@
                                                     <td class="px-5 py-4 text-sm text-gray-900 dark:text-white text-right">${{ number_format($item->price, 2) }}</td>
                                                     <td class="px-5 py-4 text-sm text-gray-900 dark:text-white text-right">{{ $item->quantity }}</td>
                                                     <td class="px-5 py-4 text-sm font-medium text-gray-900 dark:text-white text-right">${{ number_format($item->subtotal, 2) }}</td>
+                                                    @if($order->payment_method === 'cod')
+                                                        <td class="px-5 py-4 text-sm">
+                                                            @if($item->codCollection)
+                                                                @php
+                                                                    $codBadge = match($item->codCollection->status) {
+                                                                        'pending' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+                                                                        'collected' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+                                                                        default => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+                                                                    };
+                                                                @endphp
+                                                                <a href="{{ route('admin.cod-collections.show', $item->codCollection) }}" class="inline-flex items-center gap-1">
+                                                                    <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ $codBadge }}">{{ ucfirst($item->codCollection->status) }}</span>
+                                                                    @if($item->codCollection->requires_review)
+                                                                        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Review</span>
+                                                                    @endif
+                                                                </a>
+                                                            @else
+                                                                <span class="text-gray-400">—</span>
+                                                            @endif
+                                                        </td>
+                                                    @endif
                                                 </tr>
                                             @endforeach
                                         </tbody>

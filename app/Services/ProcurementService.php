@@ -206,67 +206,95 @@ class ProcurementService
 
     private function settle(ProcurementOrder $po): void
     {
-        if ($po->settled_at !== null || $po->supplier_id === null) {
-            return;
-        }
+        $settled = DB::transaction(function () use ($po) {
+            $locked = ProcurementOrder::whereKey($po->getKey())->lockForUpdate()->first();
 
-        $balance = SupplierBalance::firstOrCreate(
-            ['supplier_id' => $po->supplier_id],
-            ['balance' => 0, 'pending_balance' => 0, 'total_earned' => 0, 'total_withdrawn' => 0, 'platform_fees' => 0]
-        );
+            if ($locked === null || $locked->settled_at !== null || $locked->supplier_id === null) {
+                return false;
+            }
 
-        $amount = (float) $po->subtotal;
+            $balance = SupplierBalance::firstOrCreate(
+                ['supplier_id' => $locked->supplier_id],
+                ['balance' => 0, 'pending_balance' => 0, 'total_earned' => 0, 'total_withdrawn' => 0, 'platform_fees' => 0]
+            );
 
-        $balance->increment('balance', $amount);
-        $balance->increment('total_earned', $amount);
+            $balance = SupplierBalance::whereKey($balance->getKey())->lockForUpdate()->first();
 
-        Transaction::create([
-            'accountable_type' => SupplierBalance::class,
-            'accountable_id'   => $balance->id,
-            'reference_type'   => ProcurementOrder::class,
-            'reference_id'     => $po->id,
-            'type'             => 'credit',
-            'amount'           => $amount,
-            'description'      => 'Procurement settlement: '.$po->po_number,
-            'status'           => 'completed',
-            'method'           => 'procurement',
-        ]);
+            $amount = (float) $locked->subtotal;
 
-        $po->update(['settled_at' => now()]);
-
-        $this->notifySupplier($po, 'procurement_settlement',
-            'Settlement for '.$po->po_number,
-            route('supplier.wallet.index'));
-    }
-
-    private function reverseSettlement(ProcurementOrder $po): void
-    {
-        if ($po->settled_at === null) {
-            return;
-        }
-
-        $balance = SupplierBalance::where('supplier_id', $po->supplier_id)->first();
-
-        if ($balance) {
-            $amount = (float) $po->subtotal;
-
-            $balance->decrement('balance', $amount);
-            $balance->decrement('total_earned', $amount);
+            $balance->increment('balance', $amount);
+            $balance->increment('total_earned', $amount);
 
             Transaction::create([
                 'accountable_type' => SupplierBalance::class,
                 'accountable_id'   => $balance->id,
                 'reference_type'   => ProcurementOrder::class,
-                'reference_id'     => $po->id,
-                'type'             => 'refund',
+                'reference_id'     => $locked->id,
+                'type'             => 'credit',
                 'amount'           => $amount,
-                'description'      => 'Procurement reversal: '.$po->po_number,
+                'description'      => 'Procurement settlement: '.$locked->po_number,
                 'status'           => 'completed',
                 'method'           => 'procurement',
             ]);
-        }
 
-        $po->update(['settled_at' => null]);
+            $locked->update(['settled_at' => now()]);
+
+            app(AuditService::class)->logFinancial('supplier_settlement', $locked, [
+                'supplier_id' => $locked->supplier_id,
+                'amount'      => $amount,
+                'po_number'   => $locked->po_number,
+            ]);
+
+            return true;
+        });
+
+        if ($settled) {
+            $this->notifySupplier($po, 'procurement_settlement',
+                'Settlement for '.$po->po_number,
+                route('supplier.wallet.index'));
+        }
+    }
+
+    private function reverseSettlement(ProcurementOrder $po): void
+    {
+        DB::transaction(function () use ($po) {
+            $locked = ProcurementOrder::whereKey($po->getKey())->lockForUpdate()->first();
+
+            if ($locked === null || $locked->settled_at === null || $locked->supplier_id === null) {
+                return;
+            }
+
+            $balance = SupplierBalance::where('supplier_id', $locked->supplier_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($balance) {
+                $amount = (float) $locked->subtotal;
+
+                $balance->decrement('balance', $amount);
+                $balance->decrement('total_earned', $amount);
+
+                Transaction::create([
+                    'accountable_type' => SupplierBalance::class,
+                    'accountable_id'   => $balance->id,
+                    'reference_type'   => ProcurementOrder::class,
+                    'reference_id'     => $locked->id,
+                    'type'             => 'refund',
+                    'amount'           => $amount,
+                    'description'      => 'Procurement reversal: '.$locked->po_number,
+                    'status'           => 'completed',
+                    'method'           => 'procurement',
+                ]);
+
+                app(AuditService::class)->logFinancial('supplier_settlement_reversal', $locked, [
+                    'supplier_id' => $locked->supplier_id,
+                    'amount'      => $amount,
+                    'po_number'   => $locked->po_number,
+                ]);
+            }
+
+            $locked->update(['settled_at' => null]);
+        });
     }
 
     private function aggregateStatus(array $statuses): string

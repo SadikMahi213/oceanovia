@@ -140,9 +140,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('payouts/{payout}/approve', [App\Http\Controllers\Admin\PayoutController::class, 'approve'])->name('payouts.approve');
     Route::post('payouts/{payout}/complete', [App\Http\Controllers\Admin\PayoutController::class, 'complete'])->name('payouts.complete');
     Route::post('payouts/{payout}/reject', [App\Http\Controllers\Admin\PayoutController::class, 'reject'])->name('payouts.reject');
+    // COD Collections
+    Route::get('cod-collections', [App\Http\Controllers\Admin\CodCollectionController::class, 'index'])->name('cod-collections.index');
+    Route::get('cod-collections/export', [App\Http\Controllers\Admin\CodCollectionController::class, 'export'])->name('cod-collections.export');
+    Route::get('cod-collections/{collection}', [App\Http\Controllers\Admin\CodCollectionController::class, 'show'])->name('cod-collections.show');
+    Route::post('cod-collections/{collection}/record', [App\Http\Controllers\Admin\CodCollectionController::class, 'record'])->name('cod-collections.record');
+
     Route::get('refunds', [App\Http\Controllers\Admin\RefundController::class, 'index'])->name('refunds.index');
     Route::get('refunds/{refund}', [App\Http\Controllers\Admin\RefundController::class, 'show'])->name('refunds.show');
     Route::post('refunds/{refund}/approve', [App\Http\Controllers\Admin\RefundController::class, 'approve'])->name('refunds.approve');
+    Route::post('refunds/{refund}/complete', [App\Http\Controllers\Admin\RefundController::class, 'complete'])->name('refunds.complete');
     Route::post('refunds/{refund}/reject', [App\Http\Controllers\Admin\RefundController::class, 'reject'])->name('refunds.reject');
 
     // KYC Verifications
