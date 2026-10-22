@@ -252,7 +252,7 @@ class SellerBusinessKycFieldsTest extends TestCase
 
         $this->get(route('products.index'))
             ->assertOk()
-            ->assertSee('DBA Display Product')
+            ->assertSee('DBA DISPLAY PRODUCT')
             ->assertSee('Old Store Name')
             ->assertDontSee('Acme Store');
     }
@@ -268,7 +268,7 @@ class SellerBusinessKycFieldsTest extends TestCase
 
         $this->get(route('products.index'))
             ->assertOk()
-            ->assertSee('Privacy Product')
+            ->assertSee('PRIVACY PRODUCT')
             ->assertDontSee('12-3456789')
             ->assertDontSee('Acme Traders LLC')
             ->assertDontSee('certificate.pdf');
@@ -285,7 +285,7 @@ class SellerBusinessKycFieldsTest extends TestCase
 
         $this->get(route('products.show', $product->slug))
             ->assertOk()
-            ->assertSee('DBA Detail Product')
+            ->assertSee('DBA DETAIL PRODUCT')
             ->assertSee('Old Store Name')
             ->assertDontSee('Acme Store')
             ->assertDontSee('12-3456789')

@@ -241,7 +241,7 @@ class SellerKycSubmissionTest extends TestCase
         ])->assertRedirect(route('seller.products.index'));
 
         $this->assertDatabaseHas('products', [
-            'name'      => 'KYC Approved Product',
+            'name'      => 'KYC APPROVED PRODUCT',
             'seller_id' => $seller->id,
         ]);
     }

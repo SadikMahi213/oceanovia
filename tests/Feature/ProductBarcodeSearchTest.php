@@ -48,8 +48,8 @@ class ProductBarcodeSearchTest extends TestCase
         $response = $this->get(route('products.search', ['q' => '4006381333931']));
 
         $response->assertStatus(200);
-        $response->assertSee('Barcode Product');
-        $response->assertDontSee('Other Product');
+        $response->assertSee('BARCODE PRODUCT');
+        $response->assertDontSee('OTHER PRODUCT');
     }
 
     public function test_a_partial_barcode_does_not_match(): void
@@ -62,7 +62,7 @@ class ProductBarcodeSearchTest extends TestCase
         $response = $this->get(route('products.search', ['q' => '40063813']));
 
         $response->assertStatus(200);
-        $response->assertDontSee('Barcode Product');
+        $response->assertDontSee('BARCODE PRODUCT');
         $response->assertSee('No products found');
     }
 
@@ -76,7 +76,7 @@ class ProductBarcodeSearchTest extends TestCase
         $response = $this->get(route('products.search', ['q' => '4006381333931']));
 
         $response->assertStatus(200);
-        $response->assertSee('Barcode Product');
+        $response->assertSee('BARCODE PRODUCT');
     }
 
     public function test_the_name_search_is_unchanged(): void
@@ -87,7 +87,7 @@ class ProductBarcodeSearchTest extends TestCase
         $response = $this->get(route('products.search', ['q' => 'Sneakers']));
 
         $response->assertStatus(200);
-        $response->assertSee('Red Sneakers');
+        $response->assertSee('RED SNEAKERS');
     }
 
     public function test_a_barcode_with_a_leading_zero_is_preserved(): void
@@ -103,14 +103,14 @@ class ProductBarcodeSearchTest extends TestCase
         $response = $this->get(route('products.search', ['q' => '012345678905']));
 
         $response->assertStatus(200);
-        $response->assertSee('Zero Product');
+        $response->assertSee('ZERO PRODUCT');
 
         // Without the leading zero the product is not found: the barcode is
         // an identity, so it is not normalised.
         $withoutZero = $this->get(route('products.search', ['q' => '12345678905']));
 
         $withoutZero->assertStatus(200);
-        $withoutZero->assertDontSee('Zero Product');
+        $withoutZero->assertDontSee('ZERO PRODUCT');
     }
 
     public function test_a_draft_product_is_not_found_by_its_barcode(): void
@@ -124,7 +124,7 @@ class ProductBarcodeSearchTest extends TestCase
         $response = $this->get(route('products.search', ['q' => '4006381333931']));
 
         $response->assertStatus(200);
-        $response->assertDontSee('Draft Product');
+        $response->assertDontSee('DRAFT PRODUCT');
         $response->assertSee('No products found');
     }
 
@@ -156,8 +156,8 @@ class ProductBarcodeSearchTest extends TestCase
         ]));
 
         $response->assertStatus(200);
-        $response->assertSee('Seller Product');
-        $response->assertDontSee('Other Seller Product');
+        $response->assertSee('SELLER PRODUCT');
+        $response->assertDontSee('OTHER SELLER PRODUCT');
     }
 
     public function test_an_unknown_barcode_shows_the_no_results_page(): void
@@ -168,7 +168,7 @@ class ProductBarcodeSearchTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('No products found');
-        $response->assertDontSee('Some Product');
+        $response->assertDontSee('SOME PRODUCT');
     }
 
     public function test_a_barcode_can_be_shared_by_several_sellers(): void
@@ -181,8 +181,8 @@ class ProductBarcodeSearchTest extends TestCase
         $response = $this->get(route('products.search', ['q' => '4006381333931']));
 
         $response->assertStatus(200);
-        $response->assertSee('First Seller Product');
-        $response->assertSee('Second Seller Product');
+        $response->assertSee('FIRST SELLER PRODUCT');
+        $response->assertSee('SECOND SELLER PRODUCT');
     }
 
     public function test_the_api_product_list_also_finds_a_barcode(): void
@@ -193,7 +193,7 @@ class ProductBarcodeSearchTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertJsonCount(1, 'data');
-        $this->assertSame('Barcode Product', $response->json('data.0.name'));
+        $this->assertSame('BARCODE PRODUCT', $response->json('data.0.name'));
     }
 
     public function test_a_product_without_a_barcode_is_found_by_its_name(): void
@@ -203,7 +203,7 @@ class ProductBarcodeSearchTest extends TestCase
         $response = $this->get(route('products.search', ['q' => 'Red Sneakers']));
 
         $response->assertStatus(200);
-        $response->assertSee('Red Sneakers');
+        $response->assertSee('RED SNEAKERS');
     }
 
     public function test_the_search_page_offers_the_camera_scanner(): void
@@ -213,5 +213,151 @@ class ProductBarcodeSearchTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Scan a barcode with the camera', false);
         $response->assertSee('barcodeScanner(', false);
+    }
+
+    public function test_the_admin_product_search_finds_a_product_by_its_barcode(): void
+    {
+        $admin = User::factory()->create(['role_type' => 'admin', 'email_verified_at' => now()]);
+
+        $this->publishedProduct(['name' => 'Barcode Product', 'barcode' => '4006381333931']);
+        $this->publishedProduct(['name' => 'Other Product', 'barcode' => '9780201379624']);
+
+        $response = $this->actingAs($admin)->get(route('admin.products.index', ['search' => '4006381333931']));
+
+        $response->assertStatus(200);
+        $response->assertSee('BARCODE PRODUCT');
+        $response->assertDontSee('OTHER PRODUCT');
+    }
+
+    public function test_the_admin_product_search_finds_a_product_only_once(): void
+    {
+        $admin = User::factory()->create(['role_type' => 'admin', 'email_verified_at' => now()]);
+
+        // The name and the barcode of this product both hold the term, so the
+        // product must not be listed twice.
+        $this->publishedProduct(['name' => 'Widget 4006381333931', 'barcode' => '4006381333931']);
+
+        $response = $this->actingAs($admin)->get(route('admin.products.index', ['search' => '4006381333931']));
+
+        $response->assertStatus(200);
+        $this->assertSame(
+            1,
+            substr_count($response->getContent(), 'WIDGET 4006381333931'),
+            'A product that matches the barcode and the name must be listed once.'
+        );
+    }
+
+    public function test_the_admin_product_search_keeps_its_status_filter(): void
+    {
+        $admin = User::factory()->create(['role_type' => 'admin', 'email_verified_at' => now()]);
+
+        $this->publishedProduct([
+            'name'    => 'Draft Product',
+            'status'  => 'draft',
+            'barcode' => '4006381333931',
+        ]);
+
+        // Without a status the search shows every product of that barcode.
+        $response = $this->actingAs($admin)->get(route('admin.products.index', ['search' => '4006381333931']));
+
+        $response->assertStatus(200);
+        $response->assertSee('DRAFT PRODUCT');
+
+        // With the status filter the product is only there when it is asked
+        // for.
+        $published = $this->actingAs($admin)->get(route('admin.products.index', [
+            'search' => '4006381333931',
+            'status' => 'published',
+        ]));
+
+        $published->assertStatus(200);
+        $published->assertDontSee('DRAFT PRODUCT');
+    }
+
+    public function test_the_admin_product_search_still_finds_a_product_by_its_name_and_sku(): void
+    {
+        $admin = User::factory()->create(['role_type' => 'admin', 'email_verified_at' => now()]);
+
+        $this->publishedProduct(['name' => 'Red Sneakers', 'sku' => 'SNEAKER-SKU', 'barcode' => null]);
+
+        $byName = $this->actingAs($admin)->get(route('admin.products.index', ['search' => 'Sneakers']));
+        $byName->assertStatus(200);
+        $byName->assertSee('RED SNEAKERS');
+
+        $bySku = $this->actingAs($admin)->get(route('admin.products.index', ['search' => 'SNEAKER-SKU']));
+        $bySku->assertStatus(200);
+        $bySku->assertSee('RED SNEAKERS');
+    }
+
+    public function test_the_live_search_finds_a_product_by_its_barcode(): void
+    {
+        $this->publishedProduct(['name' => 'Barcode Product', 'barcode' => '4006381333931']);
+        $this->publishedProduct(['name' => 'Other Product', 'barcode' => '9780201379624']);
+
+        $response = $this->getJson('/api/search/live?q=4006381333931');
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1);
+        $this->assertSame('BARCODE PRODUCT', $response->json('0.name'));
+    }
+
+    public function test_the_live_search_still_finds_products_by_name(): void
+    {
+        $this->publishedProduct(['name' => 'Red Sneakers', 'barcode' => null]);
+
+        $response = $this->getJson('/api/search/live?q=Sneakers');
+
+        $response->assertStatus(200);
+        $response->assertJsonCount(1);
+        $this->assertSame('RED SNEAKERS', $response->json('0.name'));
+    }
+
+    public function test_the_live_search_only_shows_published_products(): void
+    {
+        $this->publishedProduct([
+            'name'    => 'Draft Product',
+            'status'  => 'draft',
+            'barcode' => '4006381333931',
+        ]);
+
+        $response = $this->getJson('/api/search/live?q=4006381333931');
+
+        $response->assertStatus(200);
+        $this->assertCount(0, $response->json(), 'A draft product is not shown in the live search.');
+    }
+
+    public function test_a_barcode_that_matches_nothing_finds_no_product(): void
+    {
+        $this->publishedProduct(['name' => 'Barcode Product', 'barcode' => '4006381333931']);
+
+        $response = $this->get(route('products.search', ['q' => '9999999999999']));
+
+        $response->assertStatus(200);
+        $response->assertSee('No products found');
+        $response->assertDontSee('BARCODE PRODUCT');
+    }
+
+    public function test_a_variant_has_no_barcode_of_its_own(): void
+    {
+        // The variants carry a SKU, not a barcode, so the barcode of a
+        // product is the one that is searched, and the product that owns the
+        // variant is the result.
+        $this->assertFalse(
+            \Schema::hasColumn('product_variants', 'barcode'),
+            'The variants have no barcode column, so the product level barcode is the one that is searched.'
+        );
+
+        $product = $this->publishedProduct(['name' => 'Variant Product', 'barcode' => '4006381333931']);
+
+        $product->variants()->create([
+            'sku'           => 'VARIANT-SKU',
+            'price'         => 25,
+            'stock_quantity' => 2,
+        ]);
+
+        $response = $this->get(route('products.search', ['q' => '4006381333931']));
+
+        $response->assertStatus(200);
+        $response->assertSee('VARIANT PRODUCT');
     }
 }

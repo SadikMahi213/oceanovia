@@ -45,7 +45,7 @@ class SellerDashboardTest extends TestCase
 
         $response->assertRedirect(route('seller.products.index'));
         $this->assertDatabaseHas('products', [
-            'name' => 'New Seller Product',
+            'name' => 'NEW SELLER PRODUCT',
             'seller_id' => $seller->id,
         ]);
     }
@@ -76,7 +76,7 @@ class SellerDashboardTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
-            'name' => 'Updated Name',
+            'name' => 'UPDATED NAME',
             'price' => 59.99,
         ]);
     }

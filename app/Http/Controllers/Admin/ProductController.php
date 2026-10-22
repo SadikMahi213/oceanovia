@@ -19,8 +19,12 @@ class ProductController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
+                // The barcode is searched the way the name and the SKU are:
+                // as a part of the term, so a barcode that was typed in full
+                // finds the product, and a part of one finds it as well.
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
+                  ->orWhere('sku', 'like', "%{$search}%")
+                  ->orWhere('barcode', 'like', "%{$search}%");
             });
         }
 

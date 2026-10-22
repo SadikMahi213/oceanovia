@@ -67,7 +67,7 @@ class ProductListingTest extends TestCase
         $response = $this->get(route('products.search', ['q' => 'Sneakers']));
 
         $response->assertStatus(200);
-        $response->assertSee('Red Sneakers');
+        $response->assertSee('RED SNEAKERS');
     }
 
     public function test_product_filter_by_category(): void
@@ -93,7 +93,7 @@ class ProductListingTest extends TestCase
         $response = $this->get(route('products.index', ['category' => 'shoes']));
 
         $response->assertStatus(200);
-        $response->assertSee('Shoe Product');
+        $response->assertSee('SHOE PRODUCT');
     }
 
     public function test_product_detail_page_loads(): void
@@ -111,6 +111,6 @@ class ProductListingTest extends TestCase
         $response = $this->get(route('products.show', $product->slug));
 
         $response->assertStatus(200);
-        $response->assertSee('Detail Test Product');
+        $response->assertSee('DETAIL TEST PRODUCT');
     }
 }

@@ -66,7 +66,7 @@ class SellerProductUploadTest extends TestCase
             'must not be greater than 2048 kilobytes',
             session('errors')->first('images.0')
         );
-        $this->assertDatabaseMissing('products', ['name' => 'Upload Test Product']);
+        $this->assertDatabaseMissing('products', ['name' => 'UPLOAD TEST PRODUCT']);
     }
 
     public function test_valid_product_within_upload_limits_is_created(): void
@@ -86,11 +86,11 @@ class SellerProductUploadTest extends TestCase
             ->assertRedirect(route('seller.products.index'));
 
         $this->assertDatabaseHas('products', [
-            'name'      => 'Upload Test Product',
+            'name'      => 'UPLOAD TEST PRODUCT',
             'seller_id' => $seller->id,
         ]);
 
-        $created = $seller->products()->where('name', 'Upload Test Product')->firstOrFail();
+        $created = $seller->products()->where('name', 'UPLOAD TEST PRODUCT')->firstOrFail();
         $this->assertCount(2, $created->images);
     }
 

@@ -163,7 +163,7 @@ class CheckoutTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('order_items', [
             'product_id' => $product->id,
-            'product_name' => 'Order Item Test',
+            'product_name' => 'ORDER ITEM TEST',
             'quantity' => 2,
             'unit_price' => 25.00,
             'subtotal' => 50.00,

@@ -14,8 +14,11 @@ Route::get('/search/live', function (Request $request) {
 
     $products = Product::published()
         ->where(function ($q) use ($query) {
+            // The barcode is searched like the name and the tags: as a part
+            // of the term, so a scanned code finds the product here as well.
             $q->where('name', 'like', "%{$query}%")
-              ->orWhere('tags', 'like', "%{$query}%");
+              ->orWhere('tags', 'like', "%{$query}%")
+              ->orWhere('barcode', 'like', "%{$query}%");
         })
         ->with(['category'])
         ->take(6)

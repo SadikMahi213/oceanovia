@@ -15,6 +15,11 @@ class Product extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * The number of characters the name column holds.
+     */
+    public const NAME_MAX_LENGTH = 255;
+
     protected $fillable = [
         'seller_id',
         'supplier_product_id',
@@ -214,6 +219,30 @@ class Product extends Model
     public function scopeBarcode($query, string $barcode)
     {
         return $query->where('barcode', $barcode);
+    }
+
+    /**
+     * The name of a product is always stored in upper case.
+     *
+     * The rule lives on the model, so every path that writes a product name
+     * follows it: the seller form, the admin form, the path that lists a
+     * supplier product in the store, and anything that creates or updates a
+     * product from code. A controller cannot store a name in another case.
+     *
+     * The conversion is multibyte, so a name in any script is handled, and
+     * it keeps the spacing and the punctuation of the name as it was entered.
+     * Only the name is converted: the description, the SKU, the barcode and
+     * the attributes of a variant are left as they are.
+     */
+    public function setNameAttribute($value): void
+    {
+        $name = mb_strtoupper((string) $value, 'UTF-8');
+
+        // The upper case of a name can be longer than the name itself, for
+        // example "ß" becomes "SS". The column holds 255 characters, the
+        // same number the form allows, so a name that grew past it is cut
+        // instead of being rejected by the database.
+        $this->attributes['name'] = mb_substr($name, 0, self::NAME_MAX_LENGTH);
     }
 
     public function scopeSearch($query, string $term)

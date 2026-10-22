@@ -50,7 +50,7 @@ class AdminKycApprovalTest extends TestCase
         ])->assertRedirect(route('seller.products.index'));
 
         $this->assertDatabaseHas('products', [
-            'name'      => 'Verified Seller Product',
+            'name'      => 'VERIFIED SELLER PRODUCT',
             'seller_id' => $seller->id,
         ]);
     }
