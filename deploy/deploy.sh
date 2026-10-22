@@ -13,6 +13,10 @@ PHP_BIN="${PHP_BIN:-/usr/bin/php}"
 
 APP_ENV="${APP_ENV:-production}"
 APP_URL="${APP_URL:-http://195.26.245.159}"
+# The application runs with the debug mode on, so an error in production shows
+# what went wrong instead of a blank page. It can be switched off for a
+# deployment with APP_DEBUG=false.
+APP_DEBUG="${APP_DEBUG:-true}"
 APP_KEY="${APP_KEY:-}"   # generated on first deploy if empty
 DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-3306}"
@@ -57,7 +61,7 @@ cat > "$APP_DIR/.env" <<EOF
 APP_NAME=Oceanovia
 APP_ENV=$APP_ENV
 APP_KEY=$APP_KEY
-APP_DEBUG=false
+APP_DEBUG=$APP_DEBUG
 APP_URL=$APP_URL
 APP_TIMEZONE=UTC
 
