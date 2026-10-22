@@ -53,6 +53,7 @@ if (auth()->user()?->role_type === 'admin') {
                             <input
                                 type="text"
                                 name="q"
+                                id="product-search-desktop"
                                 x-model="$store.search.query"
                                 @input="$store.search.search($store.search.query)"
                                 @focus="$store.search.show = true"
@@ -60,8 +61,9 @@ if (auth()->user()?->role_type === 'admin') {
                                 @keydown.escape="$store.search.show = false"
                                 placeholder="Search products, brands, categories..."
                                 autocomplete="off"
-                                class="w-full pl-4 pr-10 py-2.5 lg:py-3 bg-gray-100 dark:bg-gray-800 border-2 border-transparent focus:border-market-500 dark:focus:border-market-400 rounded-l-xl text-sm outline-none transition-all"
+                                class="w-full pl-4 pr-20 py-2.5 lg:py-3 bg-gray-100 dark:bg-gray-800 border-2 border-transparent focus:border-market-500 dark:focus:border-market-400 rounded-l-xl text-sm outline-none transition-all"
                             >
+                            <x-barcode-scanner target="#product-search-desktop" />
                             <button type="submit" aria-label="Search" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-market-600 dark:hover:text-market-400 transition-colors">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                             </button>
@@ -303,7 +305,8 @@ if (auth()->user()?->role_type === 'admin') {
     {{-- Mobile search bar --}}
     <div class="md:hidden px-4 pb-3">
         <form action="{{ route('products.search') }}" method="GET" class="relative">
-            <input type="text" name="q" placeholder="Search products..." class="w-full pl-4 pr-10 py-2 bg-gray-100 dark:bg-gray-800 border-2 border-transparent focus:border-market-500 rounded-xl text-sm outline-none transition-all">
+            <input type="text" name="q" id="product-search-mobile" placeholder="Search products..." class="w-full pl-4 pr-20 py-2 bg-gray-100 dark:bg-gray-800 border-2 border-transparent focus:border-market-500 rounded-xl text-sm outline-none transition-all">
+            <x-barcode-scanner target="#product-search-mobile" />
             <button type="submit" aria-label="Search" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             </button>

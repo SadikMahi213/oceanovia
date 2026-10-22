@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class CartController extends Controller
@@ -43,19 +45,31 @@ class CartController extends Controller
             ]);
         }
 
-        $cart = Cart::firstOrCreate(['user_id' => auth()->id()], ['session_id' => null]);
+        $userId = auth()->id();
 
-        $cartItem = $cart->items()->where('product_id', $product->id)->first();
+        // The mutation runs in a single transaction that takes the parent cart
+        // row lock first, the same row the checkout path locks. A cart change
+        // therefore cannot interleave with a checkout reading the same cart.
+        $cart = DB::transaction(function () use ($userId, $product, $quantity) {
+            $cart = app(CartService::class)->lockForUser($userId);
 
-        if ($cartItem) {
-            $cartItem->increment('quantity', $quantity);
-        } else {
-            $cart->items()->create([
-                'product_id' => $product->id,
-                'quantity' => $quantity,
-                'unit_price' => $product->price,
-            ]);
-        }
+            $cartItem = $cart->items()
+                ->where('product_id', $product->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($cartItem) {
+                $cartItem->increment('quantity', $quantity);
+            } else {
+                $cart->items()->create([
+                    'product_id' => $product->id,
+                    'quantity' => $quantity,
+                    'unit_price' => $product->price,
+                ]);
+            }
+
+            return $cart;
+        }, CartService::TRANSACTION_ATTEMPTS);
 
         $cart->load('items');
         $cart->refresh();
@@ -73,13 +87,33 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1|max:100',
         ]);
 
-        $cartItem = CartItem::with('cart')
-            ->whereHas('cart', fn ($q) => $q->where('user_id', auth()->id()))
-            ->findOrFail($request->cart_item_id);
+        $userId = auth()->id();
+        $cartItemId = (int) $request->cart_item_id;
+        $quantity = $request->integer('quantity');
 
-        $cartItem->update(['quantity' => $request->integer('quantity')]);
+        [$cart, $cartItem] = DB::transaction(function () use ($userId, $cartItemId, $quantity) {
+            // Scoped read that resolves the owning cart. It takes no lock, so
+            // the lock order below (carts -> cart_items) is untouched, and it
+            // keeps the original 404 for a missing item or one that belongs to
+            // another user.
+            $scoped = CartItem::query()
+                ->where('id', $cartItemId)
+                ->whereHas('cart', fn ($q) => $q->where('user_id', $userId))
+                ->firstOrFail();
 
-        $cart = $cartItem->cart->load('items');
+            $cart = Cart::whereKey($scoped->cart_id)->lockForUpdate()->firstOrFail();
+
+            $cartItem = CartItem::where('id', $cartItemId)
+                ->where('cart_id', $cart->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $cartItem->update(['quantity' => $quantity]);
+
+            $cart->load('items');
+
+            return [$cart, $cartItem];
+        }, CartService::TRANSACTION_ATTEMPTS);
 
         return response()->json([
             'cart_count' => $cart->items_count,
@@ -90,28 +124,36 @@ class CartController extends Controller
 
     public function remove(int $id): JsonResponse
     {
-        $cart = Cart::where('user_id', auth()->id())->first();
+        $userId = auth()->id();
+
+        $cart = DB::transaction(function () use ($userId, $id) {
+            $cart = Cart::where('user_id', $userId)->lockForUpdate()->first();
+
+            if (! $cart) {
+                return null;
+            }
+
+            $cartItem = $cart->items()->where('id', $id)->lockForUpdate()->first();
+
+            if (! $cartItem) {
+                $cartItem = $cart->items()->where('product_id', $id)->lockForUpdate()->first();
+            }
+
+            if (! $cartItem) {
+                $cart->load('items');
+
+                return $cart;
+            }
+
+            $cartItem->delete();
+            $cart->load('items');
+
+            return $cart;
+        }, CartService::TRANSACTION_ATTEMPTS);
 
         if (! $cart) {
             return response()->json(['cart_count' => 0, 'total' => 0]);
         }
-
-        $cartItem = $cart->items()->where('id', $id)->first();
-        if (! $cartItem) {
-            $cartItem = $cart->items()->where('product_id', $id)->first();
-        }
-
-        if (! $cartItem) {
-            $cart->load('items');
-
-            return response()->json([
-                'cart_count' => $cart->items_count,
-                'total' => $cart->total,
-            ]);
-        }
-
-        $cartItem->delete();
-        $cart->load('items');
 
         return response()->json([
             'cart_count' => $cart->items_count,
@@ -131,37 +173,50 @@ class CartController extends Controller
             'items.*.quantity' => 'required|integer|min:1|max:100',
         ]);
 
-        $cart = Cart::firstOrCreate(['user_id' => auth()->id()], ['session_id' => null]);
+        $userId = auth()->id();
 
-        $incomingIds = collect($request->items)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        // One transaction, one lock order: the parent cart row first, then the
+        // existing cart item rows by ascending id. The checkout path takes the
+        // same parent row, so a sync cannot interleave with a checkout.
+        $cart = DB::transaction(function () use ($userId, $request) {
+            $cart = app(CartService::class)->lockForUser($userId);
 
-        // Remove items that are no longer in the incoming list (persist deletions)
-        if (empty($incomingIds)) {
-            $cart->items()->delete();
-        } else {
-            $cart->items()->whereNotIn('product_id', $incomingIds)->delete();
-        }
+            // Lock the existing item rows in ascending id order so concurrent
+            // syncs acquire them in the same sequence.
+            $cart->items()->orderBy('id')->lockForUpdate()->get();
 
-        foreach ($request->items as $item) {
-            $product = Product::published()->find($item['id']);
-            if (! $product) {
-                continue;
-            }
+            $incomingIds = collect($request->items)->pluck('id')->map(fn ($id) => (int) $id)->all();
 
-            $cartItem = $cart->items()->where('product_id', $product->id)->first();
-
-            if ($cartItem) {
-                $cartItem->update(['quantity' => $item['quantity'], 'unit_price' => $product->price]);
+            // Remove items that are no longer in the incoming list (persist deletions)
+            if (empty($incomingIds)) {
+                $cart->items()->delete();
             } else {
-                $cart->items()->create([
-                    'product_id' => $product->id,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $product->price,
-                ]);
+                $cart->items()->whereNotIn('product_id', $incomingIds)->delete();
             }
-        }
 
-        $cart->load('items.product.inventory', 'items.product.seller');
+            foreach ($request->items as $item) {
+                $product = Product::published()->find($item['id']);
+                if (! $product) {
+                    continue;
+                }
+
+                $cartItem = $cart->items()->where('product_id', $product->id)->first();
+
+                if ($cartItem) {
+                    $cartItem->update(['quantity' => $item['quantity'], 'unit_price' => $product->price]);
+                } else {
+                    $cart->items()->create([
+                        'product_id' => $product->id,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $product->price,
+                    ]);
+                }
+            }
+
+            $cart->load('items.product.inventory', 'items.product.seller');
+
+            return $cart;
+        }, CartService::TRANSACTION_ATTEMPTS);
 
         return response()->json([
             'synced' => true,

@@ -58,16 +58,16 @@
                 <h3>Bill To</h3>
                 @if($order->billingAddress)
                     <p>
-                        {{ $order->billingAddress->first_name ?? $order->billingAddress->name }}<br>
-                        {{ $order->billingAddress->street }}<br>
-                        @if($order->billingAddress->apt){{ $order->billingAddress->apt }}<br>@endif
+                        {{ $order->billingAddress->first_name }} {{ $order->billingAddress->last_name }}<br>
+                        {{ $order->billingAddress->address_line1 }}<br>
+                        @if($order->billingAddress->address_line2){{ $order->billingAddress->address_line2 }}<br>@endif
                         {{ $order->billingAddress->city }}, {{ $order->billingAddress->state }} {{ $order->billingAddress->zip }}
                     </p>
                 @elseif($order->shippingAddress)
                     <p>
-                        {{ $order->shippingAddress->first_name ?? $order->shippingAddress->name }}<br>
-                        {{ $order->shippingAddress->street }}<br>
-                        @if($order->shippingAddress->apt){{ $order->shippingAddress->apt }}<br>@endif
+                        {{ $order->shippingAddress->first_name }} {{ $order->shippingAddress->last_name }}<br>
+                        {{ $order->shippingAddress->address_line1 }}<br>
+                        @if($order->shippingAddress->address_line2){{ $order->shippingAddress->address_line2 }}<br>@endif
                         {{ $order->shippingAddress->city }}, {{ $order->shippingAddress->state }} {{ $order->shippingAddress->zip }}
                     </p>
                 @endif
@@ -76,9 +76,9 @@
                 <h3>Ship To</h3>
                 @if($order->shippingAddress)
                     <p>
-                        {{ $order->shippingAddress->first_name ?? $order->shippingAddress->name }}<br>
-                        {{ $order->shippingAddress->street }}<br>
-                        @if($order->shippingAddress->apt){{ $order->shippingAddress->apt }}<br>@endif
+                        {{ $order->shippingAddress->first_name }} {{ $order->shippingAddress->last_name }}<br>
+                        {{ $order->shippingAddress->address_line1 }}<br>
+                        @if($order->shippingAddress->address_line2){{ $order->shippingAddress->address_line2 }}<br>@endif
                         {{ $order->shippingAddress->city }}, {{ $order->shippingAddress->state }} {{ $order->shippingAddress->zip }}
                     </p>
                 @else

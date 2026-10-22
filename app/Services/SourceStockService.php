@@ -27,15 +27,41 @@ class SourceStockService
      */
     public function reserveForCart(Collection $cartItems): void
     {
+        // Collect the source-stock rows this operation touches, then lock them
+        // in a deterministic ascending order before deciding on availability.
+        // Two carts holding the same supplier products would otherwise lock
+        // the rows in whatever order their items happen to be listed and can
+        // deadlock each other.
+        $supplierProductIds = [];
+
         foreach ($cartItems as $item) {
             $product = $item->product;
+
             if (! $product || ! $product->supplier_product_id) {
                 continue;
             }
 
-            $stock = SupplierProductStock::where('supplier_product_id', $product->supplier_product_id)
+            $supplierProductIds[(int) $product->supplier_product_id] = true;
+        }
+
+        ksort($supplierProductIds);
+
+        $locked = [];
+        foreach (array_keys($supplierProductIds) as $supplierProductId) {
+            $locked[$supplierProductId] = SupplierProductStock::where('supplier_product_id', $supplierProductId)
                 ->lockForUpdate()
                 ->first();
+        }
+
+        // Re-check every item against the row we actually locked.
+        foreach ($cartItems as $item) {
+            $product = $item->product;
+
+            if (! $product || ! $product->supplier_product_id) {
+                continue;
+            }
+
+            $stock = $locked[(int) $product->supplier_product_id] ?? null;
 
             $available = $stock ? $stock->stock_quantity - $stock->reserved_quantity : 0;
 

@@ -12,6 +12,7 @@ use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\CmsPageController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\ContactController;
+use App\Http\Middleware\PreserveValidationErrors;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -67,7 +68,7 @@ Route::prefix('cart')->name('cart.')->group(function () {
     Route::post('/update', [CartController::class, 'update'])->middleware('throttle:cart')->name('update');
     Route::delete('/{id}', [CartController::class, 'remove'])->middleware('throttle:cart')->name('remove');
     Route::post('/sync', [CartController::class, 'sync'])->middleware(['auth', 'throttle:cart'])->name('sync');
-    Route::get('/load', [CartController::class, 'load'])->middleware('auth')->name('load');
+    Route::get('/load', [CartController::class, 'load'])->middleware([PreserveValidationErrors::class, 'auth'])->name('load');
 });
 
 // ─── Checkout ───────────────────────────────────────────────────────────

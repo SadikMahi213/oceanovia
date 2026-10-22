@@ -12,7 +12,10 @@ use App\Models\User;
 use App\Services\CommissionService;
 use App\Services\PayoutService;
 use App\Services\RefundService;
+use App\Services\StripeRefundGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
+use Tests\Support\FakeStripeRefundGateway;
 use Tests\TestCase;
 
 class RefundServiceTest extends TestCase
@@ -175,5 +178,118 @@ class RefundServiceTest extends TestCase
         $this->assertSame('approved', $refund->status);
         $this->assertSame('stripe', $refund->refund_method);
         $this->assertSame('delivered', $order->fresh()->status);
+    }
+
+    /**
+     * The refund identity of the external operation.
+     *
+     * The columns exist, they are empty for the refunds that were made
+     * before them, and the database refuses a second refund that claims the
+     * same key or the same provider refund.
+     */
+    public function test_the_refund_carries_the_identity_of_its_external_operation(): void
+    {
+        $seller = User::factory()->create(['role_type' => 'seller']);
+        $order = $this->orderForSeller($seller, 100.00, 'cod');
+
+        $refund = $this->refundFor($order, $order->user);
+
+        $this->assertTrue(
+            Schema::hasColumn('refunds', 'stripe_idempotency_key'),
+            'The refund must carry the idempotency key of its provider call.'
+        );
+        $this->assertTrue(Schema::hasColumn('refunds', 'stripe_refund_id'));
+        $this->assertTrue(Schema::hasColumn('refunds', 'stripe_refunded_at'));
+
+        $this->assertNull($refund->stripe_idempotency_key, 'A refund that was not sent has no key yet.');
+        $this->assertNull($refund->stripe_refund_id);
+
+        // A cash refund never carries a provider identity.
+        (new RefundService())->approve($refund, $order->user->id, 'approved', 'cash');
+
+        $refund = $refund->fresh();
+        $this->assertSame('approved', $refund->status);
+        $this->assertNull($refund->stripe_idempotency_key, 'A cash refund is not sent to a provider.');
+        $this->assertNull($refund->stripe_refund_id);
+
+        // The database refuses a second refund with the same key.
+        $first = $this->refundFor($order, $order->user);
+        $first->update(['stripe_idempotency_key' => 'refund-shared-key']);
+
+        $second = $this->refundFor($order, $order->user);
+
+        try {
+            $second->update(['stripe_idempotency_key' => 'refund-shared-key']);
+            $this->fail('The database must refuse two refunds with the same idempotency key.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            $this->assertNotEmpty($e->errorInfo[1], 'The refusal must be a database error.');
+        }
+
+        // The database refuses a second refund that claims the same provider
+        // refund.
+        $first->update(['stripe_refund_id' => 're_provider_1']);
+
+        try {
+            $second->update(['stripe_refund_id' => 're_provider_1']);
+            $this->fail('The database must refuse two refunds with the same provider refund.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            $this->assertNotEmpty($e->errorInfo[1], 'The refusal must be a database error.');
+        }
+
+        // Many refunds without a key are allowed: the rows that were made
+        // before the migration keep an empty value.
+        $this->assertSame(
+            2,
+            Refund::query()->whereNull('stripe_idempotency_key')->count(),
+            'Refunds without a key are allowed.'
+        );
+    }
+
+    /**
+     * The operator can repeat an approval that did not reach the provider.
+     */
+    public function test_the_admin_can_repeat_a_card_refund_that_was_not_confirmed(): void
+    {
+        $seller = User::factory()->create(['role_type' => 'seller']);
+        $order = $this->orderForSeller($seller, 100.00, 'stripe');
+        $order->update(['stripe_payment_intent_id' => 'pi_admin_1']);
+
+        $refund = $this->refundFor($order, $order->user);
+
+        $admin = User::factory()->create(['role_type' => 'admin', 'email_verified_at' => now()]);
+
+        $gateway = new FakeStripeRefundGateway();
+        $gateway->failure = new \RuntimeException('The provider refused the refund.');
+        $this->app->instance(StripeRefundGateway::class, $gateway);
+
+        $this->actingAs($admin)->post(route('admin.refunds.approve', $refund), [])
+            ->assertRedirect(route('admin.refunds.show', $refund));
+
+        $this->assertSame('approved', $refund->fresh()->status, 'A refused refund stays approved.');
+
+        // The provider works now, so the repeated approval finishes it.
+        $gateway->failure = null;
+
+        $this->actingAs($admin)->post(route('admin.refunds.approve', $refund), [])
+            ->assertRedirect(route('admin.refunds.show', $refund));
+
+        $this->assertSame('completed', $refund->fresh()->status);
+        $this->assertCount(1, $gateway->refunds, 'The provider must have made one refund, not two.');
+        $this->assertSame(
+            $gateway->calls[0]['key'],
+            $gateway->calls[1]['key'],
+            'The repeated approval must carry the same idempotency key.'
+        );
+
+        // A card refund the provider has not confirmed cannot be completed
+        // by an operator.
+        $pending = $this->refundFor($order, $order->user);
+        $pending->update(['status' => 'approved', 'refund_method' => 'stripe']);
+
+        $this->actingAs($admin)->post(route('admin.refunds.complete', $pending), [])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertSame('approved', $pending->fresh()->status);
     }
 }

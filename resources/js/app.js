@@ -1,4 +1,9 @@
 import Alpine from 'alpinejs';
+import { barcodeScanner } from './barcode-scanner';
+
+// The camera scanner for the product search. It is registered here so that a
+// search field can use it with x-data="barcodeScanner(...)".
+Alpine.data('barcodeScanner', barcodeScanner);
 
 // Store for global state
 Alpine.store('app', {

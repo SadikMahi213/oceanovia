@@ -21,6 +21,7 @@ use App\Models\SupplierProduct;
 use App\Models\User;
 use App\Models\UserNotification;
 use App\Services\AuditService;
+use App\Services\OrderCancellationService;
 use App\Services\ProcurementService;
 use App\Services\RefundService;
 use Illuminate\Http\JsonResponse;
@@ -497,10 +498,69 @@ class SellerController extends Controller
             'status' => ['required', 'in:processing,shipped,delivered,cancelled'],
         ]);
 
-        $sellerItems = $order->items()->where('seller_id', auth()->id())->get();
-        foreach ($sellerItems as $item) {
-            $item->status = $validated['status'];
-            $item->save();
+        // Cancelling this seller's own items cancels the whole order when no
+        // other seller's items are still active. A paid order must be
+        // refunded rather than cancelled, so refuse that transition before
+        // any item is mutated.
+        if ($validated['status'] === 'cancelled') {
+            $otherActiveItems = $order->items()
+                ->where('seller_id', '!=', auth()->id())
+                ->whereNotIn('status', ['cancelled', 'returned'])
+                ->count();
+
+            if ($otherActiveItems === 0 && $order->payment_status === 'paid') {
+                return redirect()->back()->with('error', 'This order has already been paid and cannot be cancelled. Please process a refund instead.');
+            }
+
+            // Use the shared cancellation lifecycle so the stock, source
+            // reservation, commission and COD collection effects are the same
+            // as on every other cancellation path. Only this seller's own
+            // items are cancelled - the order itself is only cancelled by the
+            // service when no other seller's items remain active.
+            $sellerItemIds = $order->items()
+                ->where('seller_id', auth()->id())
+                ->pluck('id')
+                ->all();
+
+            app(OrderCancellationService::class)->cancel(
+                $order,
+                'Cancelled by seller',
+                $sellerItemIds,
+                auth()->id(),
+            );
+        } else {
+            $sellerItems = $order->items()->where('seller_id', auth()->id())->get();
+
+            // A seller may only move their own order lines forward through the
+            // legitimate fulfilment steps, and never out of a terminal state.
+            // Without this a seller could resurrect a cancelled order or
+            // declare an order delivered before it was ever handed over - both
+            // re-commit the supplier's source stock and settle the supplier
+            // for goods that were never sold.
+            if (in_array($order->status, ['cancelled', 'refunded'], true)) {
+                return redirect()->back()->with('error', 'This order can no longer be changed.');
+            }
+
+            foreach ($sellerItems as $item) {
+                if (in_array($item->status, ['cancelled', 'returned'], true)) {
+                    return redirect()->back()->with('error', 'This order line has already been cancelled and cannot be changed.');
+                }
+
+                // Delivery can only be confirmed once the goods were handed
+                // over, or once the order was already paid for. Confirming an
+                // unpaid order as delivered would settle the supplier with
+                // money the platform has not received.
+                if ($validated['status'] === 'delivered'
+                    && ! in_array($item->status, ['shipped', 'delivered'], true)
+                    && $order->payment_status !== 'paid') {
+                    return redirect()->back()->with('error', 'An order can only be confirmed as delivered once it has been handed over.');
+                }
+            }
+
+            foreach ($sellerItems as $item) {
+                $item->status = $validated['status'];
+                $item->save();
+            }
         }
 
         $allStatuses = $order->items()->pluck('status');

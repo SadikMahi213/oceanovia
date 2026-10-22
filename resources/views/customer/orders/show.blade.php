@@ -127,9 +127,9 @@
                             <h3 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Shipping Address</h3>
                             @if($order->shippingAddress)
                                 <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                                    {{ $order->shippingAddress->first_name ?? $order->shippingAddress->name }}<br>
-                                    {{ $order->shippingAddress->street }}<br>
-                                    @if($order->shippingAddress->apt){{ $order->shippingAddress->apt }}<br>@endif
+                                    {{ $order->shippingAddress->first_name }} {{ $order->shippingAddress->last_name }}<br>
+                                    {{ $order->shippingAddress->address_line1 }}<br>
+                                    @if($order->shippingAddress->address_line2){{ $order->shippingAddress->address_line2 }}<br>@endif
                                     {{ $order->shippingAddress->city }}, {{ $order->shippingAddress->state }} {{ $order->shippingAddress->zip }}<br>
                                     @if($order->shippingAddress->phone){{ $order->shippingAddress->phone }}@endif
                                 </p>
@@ -141,9 +141,9 @@
                             <h3 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Billing Address</h3>
                             @if($order->billingAddress)
                                 <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                                    {{ $order->billingAddress->first_name ?? $order->billingAddress->name }}<br>
-                                    {{ $order->billingAddress->street }}<br>
-                                    @if($order->billingAddress->apt){{ $order->billingAddress->apt }}<br>@endif
+                                    {{ $order->billingAddress->first_name }} {{ $order->billingAddress->last_name }}<br>
+                                    {{ $order->billingAddress->address_line1 }}<br>
+                                    @if($order->billingAddress->address_line2){{ $order->billingAddress->address_line2 }}<br>@endif
                                     {{ $order->billingAddress->city }}, {{ $order->billingAddress->state }} {{ $order->billingAddress->zip }}
                                 </p>
                             @else

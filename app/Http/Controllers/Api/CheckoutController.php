@@ -2,53 +2,101 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\OrderPlaced;
 use App\Http\Controllers\Controller;
-use App\Jobs\ProcessOrder;
 use App\Models\Address;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Services\CodCollectionService;
+use App\Services\CheckoutService;
 use App\Services\CommissionService;
-use App\Services\ProcurementService;
+use App\Services\InventoryService;
 use App\Services\ShippingService;
 use App\Services\TaxService;
+use App\Support\PaymentGateway;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
 {
+    /**
+     * Reject cart items that are no longer purchasable.
+     *
+     * Only published products may enter a cart (see the cart endpoints), so a
+     * cart item whose product was unpublished or removed afterwards must not
+     * be silently ordered.
+     */
+    private function assertCartItemsAvailable(Cart $cart): void
+    {
+        foreach ($cart->items as $item) {
+            $product = $item->product;
+
+            if (! $product || $product->status !== 'published') {
+                throw ValidationException::withMessages([
+                    'cart' => 'One or more items in your cart are no longer available. Please review your cart.',
+                ]);
+            }
+        }
+    }
+
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'shipping_address_id' => 'required|exists:addresses,id',
             'billing_address_id' => 'required|exists:addresses,id',
             'notes' => 'nullable|string|max:1000',
-            'payment_method' => 'required|in:stripe,cod',
+            'payment_method' => PaymentGateway::paymentMethodRule(),
         ]);
 
-        $shippingAddress = Address::where('user_id', auth()->id())->findOrFail($validated['shipping_address_id']);
-        $billingAddress = Address::where('user_id', auth()->id())->findOrFail($validated['billing_address_id']);
+        // Everything below runs inside the transaction. The cart is read and
+        // locked there, so a second checkout that waits for the same cart row
+        // sees the cart the first request consumed and cannot create a
+        // duplicate order from it.
+        $order = DB::transaction(function () use ($request, $validated) {
+            // Pessimistic lock to prevent double-order race condition. Taken
+            // inside the transaction so it is held until the order commits.
+            //
+            // The parent cart row is locked first, then the cart item rows by
+            // ascending id. This is the same protocol the cart endpoints use,
+            // so a cart mutation and a checkout serialise on the same rows and
+            // cannot observe each other's half finished work. The order, the
+            // totals and the stock movement are all derived from these locked
+            // rows.
+            $cart = Cart::where('user_id', auth()->id())
+                ->lockForUpdate()
+                ->first();
 
-        $cart = Cart::where('user_id', auth()->id())
-            ->with('items.product.inventory')
-            ->first();
+            if (! $cart) {
+                return null;
+            }
 
-        if (! $cart || $cart->items->isEmpty()) {
-            return response()->json(['message' => 'Cart is empty.'], 422);
-        }
+            $cart->setRelation(
+                'items',
+                $cart->items()
+                    ->with('product.inventory')
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+            );
 
-        $subtotal = $cart->total;
-        $shippingService = app(ShippingService::class);
-        $shippingCost = $shippingService->calculate($cart, $shippingAddress)['total'];
-        $taxService = app(TaxService::class);
-        $taxResult = $taxService->calculate($subtotal, $shippingAddress->state);
-        $tax = $taxResult['amount'];
-        $total = $subtotal + $shippingCost + $tax;
+            if ($cart->items->isEmpty()) {
+                return null;
+            }
 
-        $order = DB::transaction(function () use ($cart, $validated, $subtotal, $shippingCost, $tax, $total) {
+            $this->assertCartItemsAvailable($cart);
+
+            $shippingAddress = Address::where('user_id', auth()->id())->findOrFail($validated['shipping_address_id']);
+            $billingAddress = Address::where('user_id', auth()->id())->findOrFail($validated['billing_address_id']);
+
+            $subtotal = $cart->total;
+            $shippingService = app(ShippingService::class);
+            $shippingCost = $shippingService->calculate($cart, $shippingAddress)['total'];
+            $taxService = app(TaxService::class);
+            $taxResult = $taxService->calculate($subtotal, $shippingAddress->state);
+            $tax = $taxResult['amount'];
+            $total = $subtotal + $shippingCost + $tax;
+
             $order = Order::create([
                 'user_id' => auth()->id(),
                 'subtotal' => $subtotal,
@@ -84,35 +132,42 @@ class CheckoutController extends Controller
 
             app(CommissionService::class)->createCommissions($order);
 
+            // Commit the stock for this order inside the same transaction, so
+            // an insufficient-stock failure rolls the whole order back.
+            app(InventoryService::class)->reserveAndDecrementForCart($cart);
+
             $cart->items()->delete();
             $cart->delete();
 
+            // Cash on delivery is completed inside the transaction, so a
+            // failure while opening the procurement order or the cash
+            // collection rolls the order, the stock movement and the cart
+            // consumption back together.
+            if ($validated['payment_method'] === 'cod') {
+                app(CheckoutService::class)->finaliseCodOrder($order);
+            }
+
             return $order;
-        });
+        }, CheckoutService::TRANSACTION_ATTEMPTS);
+
+        if ($order === null) {
+            return response()->json(['message' => 'Cart is empty.'], 422);
+        }
 
         $order->load('items');
 
-        event(new OrderPlaced($order));
+        // External side effects only run once the transaction has committed.
+        // They are isolated from the checkout: the order is already saved, so
+        // a failing notification or audit job must not fail the request.
+        app(CheckoutService::class)->dispatchPostCommitEffects($order);
 
         if ($validated['payment_method'] === 'stripe') {
-            ProcessOrder::dispatch($order);
-
             return response()->json([
                 'message' => 'Order created successfully.',
                 'data' => $order,
                 'payment_url' => route('checkout.index').'?order='.$order->id,
             ], 201);
         }
-
-        $order->update([
-            'status' => 'confirmed',
-            'payment_status' => 'pending',
-            'confirmed_at' => now(),
-        ]);
-
-        app(ProcurementService::class)->createForOrder($order);
-        app(CodCollectionService::class)->createForOrder($order);
-        ProcessOrder::dispatch($order);
 
         return response()->json([
             'message' => 'Order placed successfully. Payment will be collected on delivery.',

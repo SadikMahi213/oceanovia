@@ -104,19 +104,19 @@
                                         <x-input-label for="company_name" value="Company Name (Legal Name)" />
                                         <x-text-input id="company_name" name="company_name" type="text" value="{{ old('company_name', $kyc?->company_name) }}" required maxlength="255"
                                             class="mt-1 block w-full" placeholder="e.g. ACME Traders LLC" />
-                                        <x-input-error :messages="$errors->get('company_name')" class="mt-1" />
+                                        <x-input-error :messages="$errors->get('company_name')" field="company_name" class="mt-1" />
                                     </div>
                                     <div>
                                         <x-input-label for="dba_name" value="DBA Name (Doing Business As)" />
                                         <x-text-input id="dba_name" name="dba_name" type="text" value="{{ old('dba_name', $kyc?->dba_name) }}" required maxlength="255"
                                             class="mt-1 block w-full" placeholder="e.g. ACME Store" />
-                                        <x-input-error :messages="$errors->get('dba_name')" class="mt-1" />
+                                        <x-input-error :messages="$errors->get('dba_name')" field="dba_name" class="mt-1" />
                                     </div>
                                     <div>
                                         <x-input-label for="tax_id" value="Tax ID (EIN / ITIN)" />
                                         <x-text-input id="tax_id" name="tax_id" type="text" value="{{ old('tax_id', $kyc?->tax_id) }}" required maxlength="100"
                                             class="mt-1 block w-full" placeholder="e.g. 12-3456789" />
-                                        <x-input-error :messages="$errors->get('tax_id')" class="mt-1" />
+                                        <x-input-error :messages="$errors->get('tax_id')" field="tax_id" class="mt-1" />
                                     </div>
                                     <div>
                                         <x-input-label for="resale_certificate" value="Resale Certificate" />
@@ -153,7 +153,7 @@
                                         <x-input-label for="document_number" value="Document Number" />
                                         <x-text-input id="document_number" name="document_number" type="text" value="{{ old('document_number', $kyc?->document_number) }}" required maxlength="100"
                                             class="mt-1 block w-full" placeholder="e.g. A1234567" />
-                                        <x-input-error :messages="$errors->get('document_number')" class="mt-1" />
+                                        <x-input-error :messages="$errors->get('document_number')" field="document_number" class="mt-1" />
                                     </div>
                                     <div>
                                         <x-input-label for="document_front" value="Document (Front)" />

@@ -34,7 +34,7 @@
         <div>
             <x-input-label for="email" :value="__('Email address')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
             <x-text-input id="email" class="block mt-1.5 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 focus:ring-2 focus:ring-market-500/10 dark:focus:ring-market-400/10 outline-none transition-all" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" placeholder="you@example.com" />
-            <x-input-error :messages="$errors->get('email')" class="mt-1.5" />
+            <x-input-error :messages="$errors->get('email')" field="email" class="mt-1.5" />
         </div>
 
         <!-- Password -->
@@ -60,7 +60,7 @@
                     <svg x-show="showPassword" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 012.93-4.292M6.455 6.455A9.97 9.97 0 0112 5c4.478 0 8.268 2.943 9.542 7a9.97 9.97 0 01-4.743 5.53M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18"/></svg>
                 </button>
             </div>
-            <x-input-error :messages="$errors->get('password')" class="mt-1.5" />
+            <x-input-error :messages="$errors->get('password')" field="password" class="mt-1.5" />
         </div>
 
         <!-- Remember Me -->

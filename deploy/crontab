@@ -1,6 +1,32 @@
 # deploy/crontab
-# Backup cron.
-# Install with:  crontab -u www-data -l | cat - deploy/crontab | crontab -u www-data -
+#
+# Managed crontab entries for the Oceanovia application.
+#
+# Install with:  bash deploy/install-cron.sh
+#
+# The block between the markers is managed by deploy/install-cron.sh. The
+# installer removes a previously installed block before it appends the current
+# one, so it can be run repeatedly without creating duplicate entries. Every
+# crontab entry outside the block is left untouched.
+#
+# Placeholders: @APP_DIR@ (the application directory) and @PHP_BIN@ (the PHP
+# executable) are resolved by the installer.
+
+# BEGIN oceanovia managed entries
 
 # Weekly full backup (Sunday 2am)
-0 2 * * 0 /var/www/oceanovia/deploy/backup.sh >> /var/www/oceanovia/storage/logs/backup.log 2>&1
+0 2 * * 0 "@APP_DIR@/deploy/backup.sh" >> "@APP_DIR@/storage/logs/backup.log" 2>&1
+
+# Laravel scheduler (every minute).
+#
+# It runs the tasks that are registered in routes/console.php, which includes
+# the daily dry run of money:reconcile-procurement-settlements at 03:15 UTC.
+# The scheduler never runs that reconciliation in write mode: the registered
+# task always passes --dry-run, and a repair is a separate, explicit
+# "money:reconcile-procurement-settlements --write" run.
+#
+# The output of the scheduler is appended to storage/logs/scheduler.log. That
+# file needs log rotation; see docs/PROCUREMENT_SETTLEMENT_RUNBOOK.md.
+* * * * * cd "@APP_DIR@" && "@PHP_BIN@" artisan schedule:run >> "@APP_DIR@/storage/logs/scheduler.log" 2>&1
+
+# END oceanovia managed entries

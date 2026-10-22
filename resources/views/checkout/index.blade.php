@@ -2,8 +2,45 @@
     @section('title', 'Checkout')
 
     @push('scripts')
-    <script src="https://js.stripe.com/v3/"></script>
+        @if (\App\Support\PaymentGateway::stripeConfigured())
+            <script src="https://js.stripe.com/v3/"></script>
+        @endif
     @endpush
+
+    @php
+        $usStates = [
+            'AL' => 'Alabama', 'AK' => 'Alaska', 'AZ' => 'Arizona', 'AR' => 'Arkansas',
+            'CA' => 'California', 'CO' => 'Colorado', 'CT' => 'Connecticut', 'DE' => 'Delaware',
+            'FL' => 'Florida', 'GA' => 'Georgia', 'HI' => 'Hawaii', 'ID' => 'Idaho',
+            'IL' => 'Illinois', 'IN' => 'Indiana', 'IA' => 'Iowa', 'KS' => 'Kansas',
+            'KY' => 'Kentucky', 'LA' => 'Louisiana', 'ME' => 'Maine', 'MD' => 'Maryland',
+            'MA' => 'Massachusetts', 'MI' => 'Michigan', 'MN' => 'Minnesota', 'MS' => 'Mississippi',
+            'MO' => 'Missouri', 'MT' => 'Montana', 'NE' => 'Nebraska', 'NV' => 'Nevada',
+            'NH' => 'New Hampshire', 'NJ' => 'New Jersey', 'NM' => 'New Mexico', 'NY' => 'New York',
+            'NC' => 'North Carolina', 'ND' => 'North Dakota', 'OH' => 'Ohio', 'OK' => 'Oklahoma',
+            'OR' => 'Oregon', 'PA' => 'Pennsylvania', 'RI' => 'Rhode Island', 'SC' => 'South Carolina',
+            'SD' => 'South Dakota', 'TN' => 'Tennessee', 'TX' => 'Texas', 'UT' => 'Utah',
+            'VT' => 'Vermont', 'VA' => 'Virginia', 'WA' => 'Washington', 'WV' => 'West Virginia',
+            'WI' => 'Wisconsin', 'WY' => 'Wyoming',
+        ];
+
+        $oldShippingId = old('shipping_address_id');
+        $hasOldNewShipping = old('shipping_first_name') !== null;
+        $oldShippingIdValid = $oldShippingId && $shippingAddresses->contains('id', (int) $oldShippingId);
+        $selectedShippingId = $hasOldNewShipping
+            ? null
+            : ($oldShippingIdValid ? (int) $oldShippingId : $shippingAddresses->first()?->id);
+        $showNewShipping = $shippingAddresses->isEmpty()
+            || $hasOldNewShipping
+            || ($oldShippingId && ! $oldShippingIdValid);
+
+        $oldBillingId = old('billing_address_id');
+        $selectedBillingId = $oldBillingId && $billingAddresses->contains('id', (int) $oldBillingId)
+            ? (int) $oldBillingId
+            : null;
+        $defaultShippingId = $shippingAddresses->first()?->id;
+        $billingSame = old('billing_same', '1') == '1';
+    @endphp
 
     @auth
     <section class="py-8 lg:py-12 bg-white dark:bg-gray-950" x-data="checkoutForm()">
@@ -20,73 +57,90 @@
 
             <form action="{{ route('checkout.store') }}" method="POST" id="checkout-form">
                 @csrf
+                @if($errors->any())
+                    <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300" role="alert">
+                        <p class="font-semibold mb-2">Please correct the following:</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
                 <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
                     {{-- Left: Forms --}}
                     <div class="lg:col-span-3 space-y-6">
                         {{-- Shipping Address --}}
                         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 lg:p-8">
                             <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Shipping Address</h2>
-                            @if($addresses && $addresses->count() > 0)
+                            @if($shippingAddresses->isNotEmpty())
                                 <div class="space-y-3 mb-5">
-                                    <p class="text-sm text-gray-500 dark:text-gray-400">Select a saved address</p>
-                                    @foreach($addresses as $address)
-                                        <label class="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:border-market-500 dark:hover:border-market-400 transition-colors" :class="selectedShipping === {{ $address->id }} ? 'border-market-500 dark:border-market-400 bg-market-50 dark:bg-market-900/10' : ''">
-                                            <input type="radio" name="shipping_address_id" value="{{ $address->id }}" x-model="selectedShipping" class="mt-1 accent-market-600">
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                                        @if($shippingUsingBillingFallback ?? false)
+                                            No shipping address is saved yet. Select one of your billing addresses to use for shipping.
+                                        @else
+                                            Select a saved address
+                                        @endif
+                                    </p>
+                                    @foreach($shippingAddresses as $address)
+                                        <label class="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:border-market-500 dark:hover:border-market-400 transition-colors" :class="selectedShipping == {{ $address->id }} ? 'border-market-500 dark:border-market-400 bg-market-50 dark:bg-market-900/10' : ''">
+                                            <input type="radio" name="shipping_address_id" value="{{ $address->id }}" x-model="selectedShipping" @change="showNewShipping = false" class="mt-1 accent-market-600">
                                             <div>
                                                 <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $address->first_name }} {{ $address->last_name }}</p>
                                                 <p class="text-sm text-gray-500 dark:text-gray-400">{{ $address->address_line1 }}, {{ $address->city }}, {{ $address->state }} {{ $address->zip }}</p>
+                                                @if($shippingUsingBillingFallback ?? false)
+                                                    <p class="text-xs font-medium text-market-600 dark:text-market-400 mt-1">Billing address</p>
+                                                @endif
                                             </div>
                                         </label>
                                     @endforeach
-                                    <button type="button" @click="showNewShipping = !showNewShipping" class="text-sm text-market-600 dark:text-market-400 hover:text-market-700 dark:hover:text-market-300 font-medium transition-colors" x-text="showNewShipping ? 'Cancel' : '+ Add new address'"></button>
+                                    <button type="button" @click="toggleNewShipping()" class="text-sm text-market-600 dark:text-market-400 hover:text-market-700 dark:hover:text-market-300 font-medium transition-colors" x-text="showNewShipping ? 'Cancel' : '+ Add new address'"></button>
                                 </div>
                             @endif
-                            <div x-show="showNewShipping || {{ $addresses->isEmpty() ? 'true' : 'false' }}" class="space-y-4">
+                            <fieldset x-show="showNewShipping" :disabled="!showNewShipping" class="space-y-4 min-w-0 border-0 p-0 m-0">
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
-                                        <input type="text" name="shipping_first_name" value="{{ Auth::user()->name }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        <label for="shipping_first_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
+                                        <input id="shipping_first_name" type="text" name="shipping_first_name" value="{{ old('shipping_first_name', Auth::user()->name) }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
-                                        <input type="text" name="shipping_last_name" value="{{ Auth::user()->lastname ?? '' }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        <label for="shipping_last_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
+                                        <input id="shipping_last_name" type="text" name="shipping_last_name" value="{{ old('shipping_last_name', Auth::user()->lastname ?? '') }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Street Address</label>
-                                    <input type="text" name="shipping_address_line1" required placeholder="123 Main St" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                    <label for="shipping_address_line1" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Street Address</label>
+                                    <input id="shipping_address_line1" type="text" name="shipping_address_line1" value="{{ old('shipping_address_line1') }}" required placeholder="123 Main St" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Apartment / Suite (optional)</label>
-                                    <input type="text" name="shipping_address_line2" placeholder="Apt 4B" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                    <label for="shipping_address_line2" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Apartment / Suite (optional)</label>
+                                    <input id="shipping_address_line2" type="text" name="shipping_address_line2" value="{{ old('shipping_address_line2') }}" placeholder="Apt 4B" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone Number</label>
-                                    <input type="tel" name="shipping_phone" required placeholder="+1 (555) 123-4567" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                    <label for="shipping_phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone Number</label>
+                                    <input id="shipping_phone" type="tel" name="shipping_phone" value="{{ old('shipping_phone', Auth::user()->phone ?? '') }}" required placeholder="+1 (555) 123-4567" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                 </div>
-                                <input type="hidden" name="shipping_country" value="US">
+                                <input type="hidden" name="shipping_country" value="{{ old('shipping_country', 'US') }}">
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">City</label>
-                                        <input type="text" name="shipping_city" required placeholder="New York" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        <label for="shipping_city" class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1.5">City</label>
+                                        <input id="shipping_city" type="text" name="shipping_city" value="{{ old('shipping_city') }}" required placeholder="New York" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">State</label>
-                                        <select name="shipping_state" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        <label for="shipping_state" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">State</label>
+                                        <select id="shipping_state" name="shipping_state" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                             <option value="">Select state</option>
-                                            <option value="AL">Alabama</option><option value="AK">Alaska</option><option value="AZ">Arizona</option><option value="AR">Arkansas</option><option value="CA">California</option><option value="CO">Colorado</option><option value="CT">Connecticut</option><option value="DE">Delaware</option><option value="FL">Florida</option><option value="GA">Georgia</option><option value="HI">Hawaii</option><option value="ID">Idaho</option><option value="IL">Illinois</option><option value="IN">Indiana</option><option value="IA">Iowa</option><option value="KS">Kansas</option><option value="KY">Kentucky</option><option value="LA">Louisiana</option><option value="ME">Maine</option><option value="MD">Maryland</option><option value="MA">Massachusetts</option><option value="MI">Michigan</option><option value="MN">Minnesota</option><option value="MS">Mississippi</option><option value="MO">Missouri</option><option value="MT">Montana</option><option value="NE">Nebraska</option><option value="NV">Nevada</option><option value="NH">New Hampshire</option><option value="NJ">New Jersey</option><option value="NM">New Mexico</option><option value="NY">New York</option><option value="NC">North Carolina</option><option value="ND">North Dakota</option><option value="OH">Ohio</option><option value="OK">Oklahoma</option><option value="OR">Oregon</option><option value="PA">Pennsylvania</option><option value="RI">Rhode Island</option><option value="SC">South Carolina</option><option value="SD">South Dakota</option><option value="TN">Tennessee</option><option value="TX">Texas</option><option value="UT">Utah</option><option value="VT">Vermont</option><option value="VA">Virginia</option><option value="WA">Washington</option><option value="WV">West Virginia</option><option value="WI">Wisconsin</option><option value="WY">Wyoming</option>
+                                            @foreach($usStates as $code => $label)
+                                                <option value="{{ $code }}" @selected(old('shipping_state') === $code)>{{ $label }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">ZIP Code</label>
-                                        <input type="text" name="shipping_zip" required placeholder="10001" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        <label for="shipping_zip" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">ZIP Code</label>
+                                        <input id="shipping_zip" type="text" name="shipping_zip" value="{{ old('shipping_zip') }}" required placeholder="10001" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
                                     </div>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone Number</label>
-                                    <input type="tel" name="shipping_phone" value="{{ Auth::user()->phone ?? '' }}" required placeholder="+1 (555) 123-4567" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
-                                </div>
-                            </div>
+                            </fieldset>
                         </div>
 
                         {{-- Billing Address --}}
@@ -94,22 +148,83 @@
                             <div class="flex items-start justify-between mb-5">
                                 <h2 class="text-lg font-bold text-gray-900 dark:text-white">Billing Address</h2>
                                 <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
-                                    <input type="checkbox" x-model="sameAsShipping" @change="if(sameAsShipping) copyShippingToBilling()" class="rounded accent-market-600">
+                                    <input type="hidden" name="billing_same" value="0">
+                                    <input type="checkbox" name="billing_same" value="1" x-model="sameAsShipping" class="rounded accent-market-600">
                                     Same as shipping
                                 </label>
                             </div>
-                            <div :class="sameAsShipping ? 'opacity-50 pointer-events-none' : ''">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label><input type="text" name="billing_first_name" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors"></div>
-                                    <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label><input type="text" name="billing_last_name" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors"></div>
-                                </div>
-                                <div class="mt-4"><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Street Address</label><input type="text" name="billing_street" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors"></div>
-                                <div class="mt-4"><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Apartment (optional)</label><input type="text" name="billing_apt" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors"></div>
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-                                    <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">City</label><input type="text" name="billing_city" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors"></div>
-                                    <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">State</label><select name="billing_state" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors"><option value="">Select state</option><option value="AL">Alabama</option><option value="AK">Alaska</option><option value="AZ">Arizona</option><option value="AR">Arkansas</option><option value="CA">California</option><option value="CO">Colorado</option><option value="CT">Connecticut</option><option value="DE">Delaware</option><option value="FL">Florida</option><option value="GA">Georgia</option><option value="HI">Hawaii</option><option value="ID">Idaho</option><option value="IL">Illinois</option><option value="IN">Indiana</option><option value="IA">Iowa</option><option value="KS">Kansas</option><option value="KY">Kentucky</option><option value="LA">Louisiana</option><option value="ME">Maine</option><option value="MD">Maryland</option><option value="MA">Massachusetts</option><option value="MI">Michigan</option><option value="MN">Minnesota</option><option value="MS">Mississippi</option><option value="MO">Missouri</option><option value="MT">Montana</option><option value="NE">Nebraska</option><option value="NV">Nevada</option><option value="NH">New Hampshire</option><option value="NJ">New Jersey</option><option value="NM">New Mexico</option><option value="NY">New York</option><option value="NC">North Carolina</option><option value="ND">North Dakota</option><option value="OH">Ohio</option><option value="OK">Oklahoma</option><option value="OR">Oregon</option><option value="PA">Pennsylvania</option><option value="RI">Rhode Island</option><option value="SC">South Carolina</option><option value="SD">South Dakota</option><option value="TN">Tennessee</option><option value="TX">Texas</option><option value="UT">Utah</option><option value="VT">Vermont</option><option value="VA">Virginia</option><option value="WA">Washington</option><option value="WV">West Virginia</option><option value="WI">Wisconsin</option><option value="WY">Wyoming</option></select></div>
-                                    <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">ZIP Code</label><input type="text" name="billing_zip" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors"></div>
-                                </div>
+                            <div x-show="!sameAsShipping" class="space-y-4">
+                                @if($billingAddresses->isNotEmpty())
+                                    <fieldset :disabled="sameAsShipping" class="space-y-3 min-w-0 border-0 p-0 m-0">
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">Select a saved billing address</p>
+                                        @foreach($billingAddresses as $address)
+                                            <label class="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:border-market-500 dark:hover:border-market-400 transition-colors" :class="selectedBilling == {{ $address->id }} ? 'border-market-500 dark:border-market-400 bg-market-50 dark:bg-market-900/10' : ''">
+                                                <input type="radio" name="billing_address_id" value="{{ $address->id }}" x-model="selectedBilling" class="mt-1 accent-market-600">
+                                                <div>
+                                                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $address->first_name }} {{ $address->last_name }}</p>
+                                                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ $address->address_line1 }}, {{ $address->city }}, {{ $address->state }} {{ $address->zip }}</p>
+                                                </div>
+                                            </label>
+                                        @endforeach
+                                        <label class="flex items-start gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:border-market-500 dark:hover:border-market-400 transition-colors" :class="!selectedBilling ? 'border-market-500 dark:border-market-400 bg-market-50 dark:bg-market-900/10' : ''">
+                                            <input type="radio" name="billing_address_id" value="" x-model="selectedBilling" class="mt-1 accent-market-600">
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white">Use a new billing address</p>
+                                            </div>
+                                        </label>
+                                    </fieldset>
+                                @endif
+                                <fieldset x-show="!selectedBilling" :disabled="sameAsShipping || !!selectedBilling" class="space-y-4 min-w-0 border-0 p-0 m-0">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="billing_first_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
+                                            <input id="billing_first_name" type="text" name="billing_first_name" value="{{ old('billing_first_name') }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        </div>
+                                        <div>
+                                            <label for="billing_last_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
+                                            <input id="billing_last_name" type="text" name="billing_last_name" value="{{ old('billing_last_name') }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="billing_phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone Number</label>
+                                            <input id="billing_phone" type="tel" name="billing_phone" value="{{ old('billing_phone') }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        </div>
+                                        <div>
+                                            <label for="billing_country" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Country</label>
+                                            <select id="billing_country" name="billing_country" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                                <option value="US" @selected(old('billing_country', 'US') === 'US')>United States</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="billing_street" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Street Address</label>
+                                        <input id="billing_street" type="text" name="billing_street" value="{{ old('billing_street') }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                    </div>
+                                    <div>
+                                        <label for="billing_apt" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Apartment (optional)</label>
+                                        <input id="billing_apt" type="text" name="billing_apt" value="{{ old('billing_apt') }}" class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div>
+                                            <label for="billing_city" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">City</label>
+                                            <input id="billing_city" type="text" name="billing_city" value="{{ old('billing_city') }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        </div>
+                                        <div>
+                                            <label for="billing_state" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">State</label>
+                                            <select id="billing_state" name="billing_state" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                                <option value="">Select state</option>
+                                                @foreach($usStates as $code => $label)
+                                                    <option value="{{ $code }}" @selected(old('billing_state') === $code)>{{ $label }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="billing_zip" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">ZIP Code</label>
+                                            <input id="billing_zip" type="text" name="billing_zip" value="{{ old('billing_zip') }}" required class="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 outline-none transition-colors">
+                                        </div>
+                                    </div>
+                                </fieldset>
                             </div>
                         </div>
 
@@ -117,6 +232,7 @@
                         <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6 lg:p-8">
                             <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-5">Payment Method</h2>
                             <div class="space-y-4">
+                                @if (\App\Support\PaymentGateway::stripeConfigured())
                                 <label class="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:border-market-500 dark:hover:border-market-400 transition-colors" :class="paymentMethod === 'stripe' ? 'border-market-500 dark:border-market-400 bg-market-50 dark:bg-market-900/10' : ''">
                                     <input type="radio" name="payment_method" value="stripe" x-model="paymentMethod" class="accent-market-600">
                                     <div class="flex items-center gap-3">
@@ -127,6 +243,7 @@
                                         </div>
                                     </div>
                                 </label>
+                                @endif
                                 <label class="flex items-center gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:border-market-500 dark:hover:border-market-400 transition-colors" :class="paymentMethod === 'cod' ? 'border-market-500 dark:border-market-400 bg-market-50 dark:bg-market-900/10' : ''">
                                     <input type="radio" name="payment_method" value="cod" x-model="paymentMethod" class="accent-market-600">
                                     <div class="flex items-center gap-3">
@@ -139,6 +256,7 @@
                                 </label>
                             </div>
 
+                            @if (\App\Support\PaymentGateway::stripeConfigured())
                             {{-- Stripe Card Element --}}
                             <div x-show="paymentMethod === 'stripe'" x-cloak class="mt-6">
                                 <div class="p-4 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700">
@@ -146,10 +264,11 @@
                                     <div id="card-errors" class="text-red-500 text-xs mt-2"></div>
                                 </div>
                             </div>
+                            @endif
                         </div>
 
                         {{-- Place Order --}}
-                        <button type="submit" id="place-order-btn" class="w-full py-3.5 bg-market-600 hover:bg-market-700 text-white font-medium rounded-xl transition-colors text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" onclick="this.disabled=true; this.innerHTML='<svg class=\'w-5 h-5 animate-spin\' fill=\'none\' viewBox=\'0 0 24 24\'><circle class=\'opacity-25\' cx=\'12\' cy=\'12\' r=\'10\' stroke=\'currentColor\' stroke-width=\'4\'/><path class=\'opacity-75\' fill=\'currentColor\' d=\'M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z\'/></svg> Placing Order...'; this.form.submit();">
+                        <button type="submit" id="place-order-btn" class="w-full py-3.5 bg-market-600 hover:bg-market-700 text-white font-medium rounded-xl transition-colors text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             Place Order
                         </button>
@@ -202,18 +321,37 @@
         <script>
             function checkoutForm() {
                 return {
-                    selectedShipping: {{ $addresses?->first()?->id ?? 'null' }},
-                    showNewShipping: false,
-                    sameAsShipping: true,
-                    paymentMethod: 'stripe',
-                    copyShippingToBilling() {
-                        // Copy will be handled by backend if same_as_shipping flag is set
+                    selectedShipping: @json($selectedShippingId !== null ? (string) $selectedShippingId : null),
+                    showNewShipping: @json((bool) $showNewShipping),
+                    defaultShipping: @json($defaultShippingId !== null ? (string) $defaultShippingId : null),
+                    sameAsShipping: @json($billingSame),
+                    selectedBilling: @json($selectedBillingId !== null ? (string) $selectedBillingId : ''),
+                    paymentMethod: @json(\App\Support\PaymentGateway::resolveSelection(old('payment_method'))),
+                    toggleNewShipping() {
+                        if (this.showNewShipping) {
+                            this.showNewShipping = false;
+                            this.selectedShipping = this.defaultShipping;
+                        } else {
+                            this.showNewShipping = true;
+                            this.selectedShipping = null;
+                        }
                     }
                 }
             }
         </script>
         <script>
             document.addEventListener('DOMContentLoaded', function() {
+                const form = document.getElementById('checkout-form');
+                const submitButton = document.getElementById('place-order-btn');
+
+                if (form && submitButton) {
+                    form.addEventListener('submit', function() {
+                        submitButton.disabled = true;
+                        submitButton.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Placing Order...';
+                    });
+                }
+
+                @if (\App\Support\PaymentGateway::stripeConfigured())
                 if (typeof Stripe !== 'undefined') {
                     const stripe = Stripe('{{ config('services.stripe.key') }}');
                     const elements = stripe.elements();
@@ -229,15 +367,6 @@
                     const mountPoint = document.getElementById('card-element');
                     if (mountPoint) {
                         cardElement.mount('#card-element');
-                        const form = document.getElementById('checkout-form');
-                        if (form) {
-                            form.addEventListener('submit', function(e) {
-                                if (document.querySelector('input[name="payment_method"]:checked')?.value === 'stripe') {
-                                    // Let Stripe handle, but allow form to submit
-                                    // The backend will create Stripe session
-                                }
-                            });
-                        }
                         cardElement.on('change', function(event) {
                             const displayError = document.getElementById('card-errors');
                             if (event.error) {
@@ -248,6 +377,7 @@
                         });
                     }
                 }
+                @endif
             });
         </script>
     </section>

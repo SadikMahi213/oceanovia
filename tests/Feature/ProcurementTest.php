@@ -317,4 +317,53 @@ class ProcurementTest extends TestCase
         $this->assertSame(10, $stock->stock_quantity);
         $this->assertSame(0, $stock->sold_quantity);
     }
+
+    public function test_supplier_catalog_delete_blocks_products_with_open_procurement(): void
+    {
+        $supplier = $this->supplier();
+        $seller = $this->seller();
+        $category = $this->category();
+
+        [$supplierProduct, $product] = $this->sourcedListing($supplier, $seller, $category, 40.00, 79.99, 10);
+
+        $customer = User::factory()->create();
+        $address = $this->addressFor($customer);
+        $this->checkoutCod($customer, $product, 2, $address);
+
+        $response = $this->actingAs($supplier)->delete(route('supplier.catalog.destroy', $supplierProduct));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertDatabaseHas('supplier_products', ['id' => $supplierProduct->id]);
+    }
+
+    public function test_supplier_catalog_delete_removes_product_without_open_procurement(): void
+    {
+        $supplier = $this->supplier();
+        $supplierProduct = SupplierProduct::factory()->create([
+            'supplier_id' => $supplier->id,
+            'status' => 'published',
+        ]);
+
+        $response = $this->actingAs($supplier)->delete(route('supplier.catalog.destroy', $supplierProduct));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertDatabaseMissing('supplier_products', ['id' => $supplierProduct->id]);
+    }
+
+    public function test_supplier_cannot_delete_another_suppliers_catalog_product(): void
+    {
+        $supplier = $this->supplier();
+        $otherSupplier = $this->supplier();
+        $supplierProduct = SupplierProduct::factory()->create([
+            'supplier_id' => $supplier->id,
+            'status' => 'published',
+        ]);
+
+        $response = $this->actingAs($otherSupplier)->delete(route('supplier.catalog.destroy', $supplierProduct));
+
+        $response->assertForbidden();
+        $this->assertDatabaseHas('supplier_products', ['id' => $supplierProduct->id]);
+    }
 }

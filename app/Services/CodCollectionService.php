@@ -8,6 +8,7 @@ use App\Models\EmailLog;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Support\AdminRecipient;
+use App\Support\TransactionRetry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -83,6 +84,10 @@ class CodCollectionService
      * Record a verified collection. Admin-only (UD-2). Credits the seller's
      * available balance immediately for the actual amount collected (UD-3),
      * flags shortfalls for review (UD-4) and never over-credits.
+     *
+     * The credit and the collection record are one financial operation, so
+     * they share this transaction. It is the outermost transaction of the
+     * workflow, which is why it can ask for retries of its own.
      */
     public function recordCollection(
         CodCollection $collection,
@@ -148,7 +153,7 @@ class CodCollectionService
             }
 
             return $locked->fresh();
-        });
+        }, TransactionRetry::ATTEMPTS);
     }
 
     /**

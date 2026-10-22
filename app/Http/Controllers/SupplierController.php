@@ -7,6 +7,7 @@ use App\Models\InventoryLog;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProcurementOrder;
+use App\Models\ProcurementOrderItem;
 use App\Models\Product;
 use App\Models\ReturnRequest;
 use App\Models\Review;

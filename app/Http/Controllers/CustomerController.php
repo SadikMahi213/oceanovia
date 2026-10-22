@@ -15,6 +15,7 @@ use App\Models\ReturnRequest;
 use App\Models\Review;
 use App\Models\UserNotification;
 use App\Models\Wishlist;
+use App\Services\CartService;
 use App\Services\OrderCancellationService;
 use App\Services\ProcurementService;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +24,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
 class CustomerController extends Controller
@@ -125,7 +127,7 @@ class CustomerController extends Controller
     {
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password'         => ['required', 'string', Rules\Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
+            'password'         => ['required', 'string', Password::min(8)->mixedCase()->numbers()->symbols(), 'confirmed'],
         ]);
 
         auth()->user()->update(['password' => Hash::make($validated['password'])]);
@@ -246,6 +248,13 @@ class CustomerController extends Controller
             return redirect()->back()->with('error', 'Order cannot be cancelled.');
         }
 
+        // A paid order must go through the refund workflow. Cancelling it
+        // would return the stock while the payment stays recorded as paid
+        // and the seller credit is never reversed.
+        if ($order->payment_status === 'paid') {
+            return redirect()->back()->with('error', 'This order has already been paid and cannot be cancelled. Please request a refund instead.');
+        }
+
         $validated = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
 
         app(OrderCancellationService::class)->cancel(
@@ -262,26 +271,49 @@ class CustomerController extends Controller
     {
         if ($order->user_id !== auth()->id()) abort(403);
 
-        $cart = Cart::firstOrCreate(['user_id' => auth()->id()], ['session_id' => null]);
+        $userId = auth()->id();
 
-        foreach ($order->items as $item) {
-            $product = Product::published()->find($item->product_id);
-            if (!$product) continue;
+        // A reorder is a cart mutation, so it follows the same protocol as the
+        // cart endpoints and the checkout: the parent cart row is locked
+        // first, then the affected cart item rows by ascending id, and the
+        // increment-or-insert decision is made on those locked rows. A
+        // reorder therefore cannot interleave with a cart mutation or a
+        // checkout reading the same cart.
+        DB::transaction(function () use ($order, $userId) {
+            $cart = app(CartService::class)->lockForUser($userId);
 
-            $existing = $cart->items()->where('product_id', $product->id)->first();
-            if ($existing) {
-                $existing->increment('quantity', $item->quantity);
-            } else {
-                $cart->items()->create([
-                    'product_id' => $product->id,
-                    'quantity' => $item->quantity,
-                    'unit_price' => $product->price,
-                ]);
+            $productIds = $order->items->pluck('product_id')->unique()->all();
+
+            // Lock the affected cart item rows by ascending id, so concurrent
+            // reorders and cart mutations acquire the rows in the same order.
+            $lockedItems = $cart->items()
+                ->whereIn('product_id', $productIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('product_id');
+
+            foreach ($order->items as $item) {
+                $product = Product::published()->find($item->product_id);
+                if (!$product) continue;
+
+                $existing = $lockedItems->get($product->id);
+
+                if ($existing) {
+                    $existing->increment('quantity', $item->quantity);
+                } else {
+                    $cart->items()->create([
+                        'product_id' => $product->id,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $product->price,
+                    ]);
+                }
             }
-        }
+        }, CartService::TRANSACTION_ATTEMPTS);
 
         return redirect()->route('cart.index')->with('success', 'Items added to cart.');
     }
+
 
     public function orderInvoice(Order $order)
     {

@@ -4,13 +4,28 @@
     <section class="py-16 lg:py-24 bg-white dark:bg-gray-950">
         <div class="max-w-2xl mx-auto px-4">
             <div class="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-8 lg:p-12 shadow-xl text-center">
-                {{-- Success Animation --}}
-                <div class="mx-auto w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
-                    <svg class="w-10 h-10 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                </div>
+                @php($paymentConfirmed = $paymentConfirmed ?? false)
+                @if ($paymentConfirmed)
+                    {{-- Payment confirmed --}}
+                    <div class="mx-auto w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
+                        <svg class="w-10 h-10 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    </div>
 
-                <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-3">Order Placed Successfully!</h1>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">Thank you for your purchase. Your order has been placed and is being processed.</p>
+                    <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-3">Order Placed Successfully!</h1>
+                    <p class="text-gray-500 dark:text-gray-400 mb-6">Thank you for your purchase. Your payment has been confirmed and your order is being processed.</p>
+                @else
+                    {{-- Order placed, payment not settled yet --}}
+                    <div class="mx-auto w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-6">
+                        <svg class="w-10 h-10 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+
+                    <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-3">Order Placed &mdash; Payment Pending</h1>
+                    @if ($order->payment_method === 'cod')
+                        <p class="text-gray-500 dark:text-gray-400 mb-6">Your order has been placed and is being processed. Payment will be collected when your order is delivered.</p>
+                    @else
+                        <p class="text-gray-500 dark:text-gray-400 mb-6">Your order has been placed, but your payment has not been confirmed yet.</p>
+                    @endif
+                @endif
 
                 {{-- Order Number --}}
                 <div class="inline-flex items-center gap-3 px-6 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl mb-8">

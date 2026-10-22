@@ -79,6 +79,22 @@ class ProfileTest extends TestCase
         $this->assertSoftDeleted('users', ['id' => $user->id]);
     }
 
+    public function test_customer_password_update_reaches_validation_without_missing_rule_class(): void
+    {
+        $user = User::factory()->create(['role_type' => 'customer']);
+
+        $response = $this
+            ->actingAs($user)
+            ->put(route('customer.profile.password'), [
+                'current_password' => 'password',
+                'password' => 'short',
+                'password_confirmation' => 'short',
+            ]);
+
+        $response->assertSessionHasErrors('password');
+        $this->assertNotNull($user->fresh());
+    }
+
     public function test_correct_password_must_be_provided_to_delete_account(): void
     {
         $user = User::factory()->create();

@@ -26,15 +26,19 @@ class Refund extends Model
         'completed_by',
         'completed_at',
         'completion_notes',
+        'stripe_idempotency_key',
+        'stripe_refund_id',
+        'stripe_refunded_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'amount'       => 'decimal:2',
-            'approved_at'  => 'datetime',
-            'rejected_at'  => 'datetime',
-            'completed_at' => 'datetime',
+            'amount'            => 'decimal:2',
+            'approved_at'       => 'datetime',
+            'rejected_at'       => 'datetime',
+            'completed_at'      => 'datetime',
+            'stripe_refunded_at' => 'datetime',
         ];
     }
 
@@ -81,5 +85,22 @@ class Refund extends Model
     public function scopeRejected($query)
     {
         return $query->where('status', 'rejected');
+    }
+
+    /**
+     * The refunds the payment provider confirmed but that are not finalized
+     * locally yet.
+     */
+    public function scopeStripeRefunded($query)
+    {
+        return $query->where('status', 'stripe_refunded');
+    }
+
+    /**
+     * Whether the payment provider already refunded this refund.
+     */
+    public function hasProviderRefund(): bool
+    {
+        return filled($this->stripe_refund_id);
     }
 }

@@ -2,28 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use App\Events\OrderPlaced;
-use App\Jobs\ProcessOrder;
 use App\Models\Address;
 use App\Models\Cart;
-use App\Models\Inventory;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Services\CodCollectionService;
+use App\Services\CheckoutService;
 use App\Services\CommissionService;
 use App\Services\CouponService;
+use App\Services\InventoryService;
 use App\Services\OrderCancellationService;
 use App\Services\PayoutService;
 use App\Services\ProcurementService;
 use App\Services\ShippingService;
-use App\Services\SourceStockService;
 use App\Services\TaxService;
+use App\Support\PaymentGateway;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Stripe\Checkout\Session as StripeSession;
 use Stripe\Stripe as StripeGateway;
@@ -41,22 +39,57 @@ class CheckoutController extends Controller
             return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
         }
 
-        $addresses = auth()->user()->addresses;
+        $addresses = auth()->user()->addresses()
+            ->orderByDesc('is_default')
+            ->latest()
+            ->get();
 
-        // Pre-calculate shipping/tax for preview (using first address if available)
-        $previewAddress = $addresses->first();
+        $shippingAddresses = $addresses->where('address_type', 'shipping')->values();
+        $billingAddresses = $addresses->where('address_type', 'billing')->values();
+
+        // Preserve legacy compatibility: when no shipping address exists yet,
+        // the customer's own billing addresses may be used as shipping options.
+        $shippingUsingBillingFallback = $shippingAddresses->isEmpty() && $billingAddresses->isNotEmpty();
+        if ($shippingUsingBillingFallback) {
+            $shippingAddresses = $billingAddresses;
+        }
+
+        // Pre-calculate shipping/tax for preview (using first eligible address if available)
+        $previewAddress = $shippingAddresses->first();
         $shippingService = app(ShippingService::class);
         $taxService = app(TaxService::class);
         $shippingPreview = $shippingService->calculate($cart, $previewAddress);
         $taxPreview = $previewAddress ? $taxService->calculate($cart->total, $previewAddress->state) : ['amount' => 0, 'rate' => 0, 'name' => 'No Tax'];
 
-        return view('checkout.index', compact('cart', 'addresses', 'shippingPreview', 'taxPreview'));
+        return view('checkout.index', compact(
+            'cart',
+            'shippingAddresses',
+            'billingAddresses',
+            'shippingUsingBillingFallback',
+            'shippingPreview',
+            'taxPreview'
+        ));
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'shipping_address_id' => 'required_without:shipping_first_name|exists:addresses,id',
+        $user = auth()->user();
+        $billingSame = $request->has('billing_same')
+            ? $request->boolean('billing_same')
+            : true;
+        $hasSavedBillingAddress = ! $billingSame && $request->filled('billing_address_id');
+
+        // Match the selector eligibility exactly: shipping addresses when the
+        // customer has any, otherwise their own billing addresses as a fallback.
+        $shippingAddressType = $user->addresses()->shipping()->exists() ? 'shipping' : 'billing';
+
+        $rules = [
+            'shipping_address_id' => [
+                'required_without:shipping_first_name',
+                Rule::exists('addresses', 'id')->where(
+                    fn ($query) => $query->where('user_id', $user->id)->where('address_type', $shippingAddressType)
+                ),
+            ],
             'shipping_first_name' => 'required_without:shipping_address_id|string|max:255',
             'shipping_last_name' => 'required_without:shipping_address_id|string|max:255',
             'shipping_phone' => 'required_without:shipping_address_id|string|max:20',
@@ -66,53 +99,112 @@ class CheckoutController extends Controller
             'shipping_state' => 'required_without:shipping_address_id|string|max:255',
             'shipping_zip' => 'required_without:shipping_address_id|string|max:20',
             'shipping_country' => 'required_without:shipping_address_id|string|max:2',
-            'billing_same' => 'boolean',
-            'billing_address_id' => 'nullable|exists:addresses,id',
-            'payment_method' => 'required|in:stripe,cod',
+            'billing_same' => 'sometimes|boolean',
+            'billing_address_id' => ['nullable', 'integer'],
+            'payment_method' => PaymentGateway::paymentMethodRule(),
             'notes' => 'nullable|string|max:1000',
             'coupon_code' => 'nullable|string|max:50',
-        ]);
+        ];
 
-        $user = auth()->user();
+        if (! $billingSame) {
+            $rules['billing_address_id'][] = Rule::exists('addresses', 'id')->where(
+                fn ($query) => $query->where('user_id', $user->id)->where('address_type', 'billing')
+            );
+        }
 
-        if ($request->filled('shipping_address_id')) {
-            $shippingAddress = Address::where('user_id', $user->id)
-                ->findOrFail($request->shipping_address_id);
-        } else {
-            $shippingAddress = $user->addresses()->create([
-                'address_type' => 'shipping',
-                'first_name' => $request->shipping_first_name,
-                'last_name' => $request->shipping_last_name,
-                'phone' => $request->shipping_phone,
-                'address_line1' => $request->shipping_address_line1,
-                'address_line2' => $request->shipping_address_line2,
-                'city' => $request->shipping_city,
-                'state' => $request->shipping_state,
-                'zip' => $request->shipping_zip,
-                'country' => $request->shipping_country,
+        if (! $billingSame && ! $hasSavedBillingAddress) {
+            $rules = array_merge($rules, [
+                'billing_first_name' => 'required|string|max:255',
+                'billing_last_name' => 'required|string|max:255',
+                'billing_phone' => 'required|string|max:30',
+                'billing_street' => 'required|string|max:255',
+                'billing_apt' => 'nullable|string|max:255',
+                'billing_city' => 'required|string|max:255',
+                'billing_state' => 'required|string|max:255',
+                'billing_zip' => 'required|string|max:20',
+                'billing_country' => 'required|string|size:2|in:US',
             ]);
         }
 
-        if ($request->boolean('billing_same')) {
-            $billingAddress = $shippingAddress;
-        } elseif ($request->filled('billing_address_id')) {
-            $billingAddress = Address::where('user_id', $user->id)
-                ->findOrFail($request->billing_address_id);
-        } else {
-            $billingAddress = $shippingAddress;
-        }
+        $validated = $request->validate($rules);
 
-        // Pessimistic lock to prevent double-order race condition
-        $cart = Cart::with('items.product.inventory')
-            ->where('user_id', $user->id)
-            ->lockForUpdate()
-            ->firstOrFail();
+        // Everything below runs inside the transaction. The cart is read and
+        // locked there, so a second checkout that waits for the same cart row
+        // sees the cart the first request consumed and cannot create a
+        // duplicate order from it.
+        $order = DB::transaction(function () use ($user, $request, $billingSame, $validated, $shippingAddressType) {
+            // Pessimistic lock to prevent double-order race condition. Taken
+            // inside the transaction so it is held until the order commits.
+            //
+            // The parent cart row is locked first, then the cart item rows by
+            // ascending id. This is the same protocol the cart endpoints use,
+            // so a cart mutation and a checkout serialise on the same rows and
+            // cannot observe each other's half finished work. The order, the
+            // totals and the stock movement are all derived from these locked
+            // rows.
+            $cart = Cart::where('user_id', $user->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if ($cart->items->isEmpty()) {
-            return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
-        }
+            $cart->setRelation(
+                'items',
+                $cart->items()
+                    ->with('product.inventory')
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get()
+            );
 
-        $order = DB::transaction(function () use ($user, $cart, $shippingAddress, $billingAddress, $request) {
+            if ($cart->items->isEmpty()) {
+                return null;
+            }
+
+            $shippingAddress = null;
+            if ($request->filled('shipping_address_id')) {
+                $shippingAddress = $user->addresses()
+                    ->where('address_type', $shippingAddressType)
+                    ->findOrFail($validated['shipping_address_id']);
+            }
+
+            $billingAddress = null;
+            if (! $billingSame && $request->filled('billing_address_id')) {
+                $billingAddress = $user->addresses()
+                    ->billing()
+                    ->findOrFail($validated['billing_address_id']);
+            }
+
+            if (! $shippingAddress) {
+                $shippingAddress = $user->addresses()->create([
+                    'address_type' => 'shipping',
+                    'first_name' => $validated['shipping_first_name'],
+                    'last_name' => $validated['shipping_last_name'],
+                    'phone' => $validated['shipping_phone'],
+                    'address_line1' => $validated['shipping_address_line1'],
+                    'address_line2' => $validated['shipping_address_line2'] ?? null,
+                    'city' => $validated['shipping_city'],
+                    'state' => $validated['shipping_state'],
+                    'zip' => $validated['shipping_zip'],
+                    'country' => $validated['shipping_country'],
+                ]);
+            }
+
+            if ($billingSame) {
+                $billingAddress = $shippingAddress;
+            } elseif (! $billingAddress) {
+                $billingAddress = $user->addresses()->create([
+                    'address_type' => 'billing',
+                    'first_name' => $validated['billing_first_name'],
+                    'last_name' => $validated['billing_last_name'],
+                    'phone' => $validated['billing_phone'],
+                    'address_line1' => $validated['billing_street'],
+                    'address_line2' => $validated['billing_apt'] ?? null,
+                    'city' => $validated['billing_city'],
+                    'state' => $validated['billing_state'],
+                    'zip' => $validated['billing_zip'],
+                    'country' => $validated['billing_country'],
+                ]);
+            }
+
             $subtotal = $cart->total;
 
             // Calculate shipping per vendor (multivendor)
@@ -182,36 +274,33 @@ class CheckoutController extends Controller
 
             // Decrement inventory to prevent overselling
             // (sourced items reserve supplier source stock instead)
-            app(SourceStockService::class)->reserveForCart($cart->items);
-            $this->decrementInventory($cart);
+            app(InventoryService::class)->reserveAndDecrementForCart($cart);
 
             $cart->items()->delete();
 
+            // Cash on delivery is completed inside the transaction, so a
+            // failure while opening the procurement order or the cash
+            // collection rolls the order, the stock movement and the cart
+            // consumption back together.
+            if ($request->payment_method === 'cod') {
+                app(CheckoutService::class)->finaliseCodOrder($order);
+            }
+
             return $order;
-        });
+        }, CheckoutService::TRANSACTION_ATTEMPTS);
 
-        event(new OrderPlaced($order));
-
-        if ($request->payment_method === 'stripe') {
-            ProcessOrder::dispatch($order);
-
-            return redirect()->route('checkout.stripe', $order);
+        if ($order === null) {
+            return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
         }
 
-        // COD: set payment_status to 'pending' (not 'paid') until delivery confirmed
-        $order->update([
-            'status' => 'confirmed',
-            'payment_status' => 'pending',
-            'confirmed_at' => now(),
-        ]);
+        // External side effects only run once the transaction has committed.
+        // They are isolated from the checkout: the order is already saved, so
+        // a failing notification or audit job must not fail the request.
+        app(CheckoutService::class)->dispatchPostCommitEffects($order);
 
-        // COD is confirmed immediately -> create procurement orders now
-        app(ProcurementService::class)->createForOrder($order);
-
-        // COD: open one collection record per line for later admin verification
-        app(CodCollectionService::class)->createForOrder($order);
-
-        ProcessOrder::dispatch($order);
+        if ($request->payment_method === 'stripe') {
+            return redirect()->route('checkout.stripe', $order);
+        }
 
         return redirect()->route('orders.show', $order)
             ->with('success', 'Order placed successfully! Payment will be collected on delivery.');
@@ -231,6 +320,13 @@ class CheckoutController extends Controller
         if ($order->status === 'cancelled') {
             return redirect()->route('orders.show', $order)
                 ->with('error', 'This order has been cancelled and can no longer be paid.');
+        }
+
+        // The card gateway needs a full Stripe configuration. Without one the
+        // SDK call would fail with a 500, so refuse before touching Stripe.
+        if (! PaymentGateway::stripeConfigured()) {
+            return redirect()->route('orders.show', $order)
+                ->with('error', PaymentGateway::unavailableMessage());
         }
 
         StripeGateway::setApiKey(config('services.stripe.secret'));
@@ -332,7 +428,22 @@ class CheckoutController extends Controller
             }
         }
 
-        return view('checkout.confirmation', compact('order'));
+        // The page reflects the persisted order state only - never the
+        // session_id query parameter or anything else the request supplied.
+        $order->refresh();
+
+        // A cancelled or refunded order is never a payment confirmation.
+        if ($order->status === 'cancelled' || $order->payment_status === 'refunded') {
+            return redirect()->route('orders.show', $order)->with('error', $order->payment_status === 'refunded'
+                ? 'This order has been refunded, so there is no payment to confirm.'
+                : 'This order was cancelled, so there is no payment to confirm.');
+        }
+
+        // Cash on delivery orders are placed but not settled: they get an
+        // order-placement confirmation, never a payment-success claim.
+        $paymentConfirmed = $order->payment_status === 'paid';
+
+        return view('checkout.confirmation', compact('order', 'paymentConfirmed'));
     }
 
     public function cancel(Order $order): RedirectResponse
@@ -428,32 +539,4 @@ class CheckoutController extends Controller
         }
     }
 
-    private function decrementInventory(Cart $cart): void
-    {
-        foreach ($cart->items as $item) {
-            $inventory = $item->product?->inventory;
-            if (! $inventory) {
-                continue;
-            }
-
-            // Sourced items reserve supplier source stock instead of the
-            // per-listing inventory row; skip to avoid double-decrementing.
-            if ($item->product?->supplier_product_id) {
-                continue;
-            }
-
-            $inventory = Inventory::whereKey($inventory->id)->lockForUpdate()->first();
-            if (! $inventory) {
-                continue;
-            }
-
-            if ($inventory->stock_quantity < $item->quantity) {
-                throw ValidationException::withMessages([
-                    'cart' => "Insufficient stock for \"{$item->product->name}\". Please adjust your cart.",
-                ]);
-            }
-
-            $inventory->decrement('stock_quantity', $item->quantity);
-        }
-    }
 }

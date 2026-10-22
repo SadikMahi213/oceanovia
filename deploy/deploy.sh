@@ -9,6 +9,7 @@ REPO_URL="${REPO_URL:-https://github.com/SadikMahi213/oceanovia.git}"
 BRANCH="${BRANCH:-main}"
 APP_USER="${APP_USER:-www-data}"
 APP_GROUP="${APP_GROUP:-www-data}"
+PHP_BIN="${PHP_BIN:-/usr/bin/php}"
 
 APP_ENV="${APP_ENV:-production}"
 APP_URL="${APP_URL:-http://195.26.245.159}"
@@ -35,7 +36,7 @@ SESSION_DRIVER="${SESSION_DRIVER:-redis}"
 CACHE_STORE="${CACHE_STORE:-redis}"
 QUEUE_CONNECTION="${QUEUE_CONNECTION:-redis}"
 
-echo "=== [1/9] Fetching code ==="
+echo "=== [1/10] Fetching code ==="
 if [ ! -d "$APP_DIR" ]; then
     mkdir -p "$APP_DIR"
     git clone --depth 1 -b "$BRANCH" "$REPO_URL" "$APP_DIR"
@@ -47,7 +48,7 @@ else
     cd -
 fi
 
-echo "=== [2/9] Writing .env ==="
+echo "=== [2/10] Writing .env ==="
 if [ -z "$APP_KEY" ]; then
     APP_KEY="base64:$(openssl rand -base64 32)"
 fi
@@ -98,25 +99,25 @@ SANCTUM_STATEFUL_DOMAINS=195.26.245.159
 TRUSTED_PROXIES=
 EOF
 
-echo "=== [3/9] Installing composer deps ==="
+echo "=== [3/10] Installing composer deps ==="
 cd "$APP_DIR"
 composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 
-echo "=== [4/9] Building frontend ==="
+echo "=== [4/10] Building frontend ==="
 npm ci --no-audit --no-fund
 npm run build
 
-echo "=== [5/9] Creating DB + user ==="
+echo "=== [5/10] Creating DB + user ==="
 mysql -e "CREATE DATABASE IF NOT EXISTS \`$DB_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mysql -e "CREATE USER IF NOT EXISTS '$DB_USERNAME'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
 mysql -e "GRANT ALL PRIVILEGES ON \`$DB_DATABASE\`.* TO '$DB_USERNAME'@'localhost';"
 mysql -e "FLUSH PRIVILEGES;"
 
-echo "=== [6/9] Migrations + seed ==="
+echo "=== [6/10] Migrations + seed ==="
 php artisan migrate --force
 php artisan db:seed --force
 
-echo "=== [7/9] Caching ==="
+echo "=== [7/10] Caching ==="
 php artisan storage:link
 php artisan config:cache
 php artisan route:cache
@@ -124,11 +125,18 @@ php artisan view:cache
 php artisan event:cache
 php artisan optimize
 
-echo "=== [8/9] Permissions ==="
+echo "=== [8/10] Permissions ==="
 chown -R "$APP_USER:$APP_GROUP" "$APP_DIR"
 chmod -R 775 "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 
-echo "=== [9/9] Reloading services ==="
+echo "=== [9/10] Installing the scheduler cron ==="
+# The Laravel scheduler needs a cron entry that runs "artisan schedule:run"
+# every minute; without it the scheduled tasks never run. The installer is
+# idempotent, so it is safe to run on every deploy.
+APP_DIR="$APP_DIR" APP_USER="$APP_USER" PHP_BIN="$PHP_BIN" \
+    bash "$APP_DIR/deploy/install-cron.sh"
+
+echo "=== [10/10] Reloading services ==="
 systemctl reload php8.4-fpm
 systemctl reload nginx
 supervisorctl reread 2>/dev/null || true
@@ -136,3 +144,4 @@ supervisorctl update 2>/dev/null || true
 
 echo ""
 echo "=== Deploy complete: $APP_URL ==="
+echo "Verify the scheduler with:  sudo -u $APP_USER crontab -l | grep schedule:run"

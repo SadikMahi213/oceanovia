@@ -6,14 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CartController extends Controller
 {
     public function index(): JsonResponse
     {
-        $cart = $this->getOrCreateCart();
+        $cart = app(CartService::class)->findOrCreateForUser(auth()->id());
         $cart->load('items.product');
 
         return response()->json([
@@ -42,19 +44,31 @@ class CartController extends Controller
 
         $product = Product::published()->findOrFail($validated['product_id']);
 
-        $cart = $this->getOrCreateCart();
+        $userId = auth()->id();
 
-        $existing = $cart->items()->where('product_id', $product->id)->first();
+        // The mutation runs in a single transaction that takes the parent cart
+        // row lock first, the same row the checkout path locks. A cart change
+        // therefore cannot interleave with a checkout reading the same cart.
+        $cart = DB::transaction(function () use ($userId, $product, $validated) {
+            $cart = app(CartService::class)->lockForUser($userId);
 
-        if ($existing) {
-            $existing->increment('quantity', $validated['quantity']);
-        } else {
-            $cart->items()->create([
-                'product_id' => $product->id,
-                'quantity' => $validated['quantity'],
-                'unit_price' => $product->price,
-            ]);
-        }
+            $existing = $cart->items()
+                ->where('product_id', $product->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                $existing->increment('quantity', $validated['quantity']);
+            } else {
+                $cart->items()->create([
+                    'product_id' => $product->id,
+                    'quantity' => $validated['quantity'],
+                    'unit_price' => $product->price,
+                ]);
+            }
+
+            return $cart;
+        }, CartService::TRANSACTION_ATTEMPTS);
 
         return $this->cartSummary($cart);
     }
@@ -66,30 +80,47 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:0|max:100',
         ]);
 
-        $cart = $this->getOrCreateCart();
-        $item = $cart->items()->findOrFail($validated['cart_item_id']);
+        $userId = auth()->id();
 
-        if ($validated['quantity'] === 0) {
-            $item->delete();
-        } else {
-            $item->update(['quantity' => $validated['quantity']]);
-        }
+        $cart = DB::transaction(function () use ($userId, $validated) {
+            $cart = app(CartService::class)->lockForUser($userId);
+
+            $item = $cart->items()
+                ->where('id', $validated['cart_item_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($validated['quantity'] === 0) {
+                $item->delete();
+            } else {
+                $item->update(['quantity' => $validated['quantity']]);
+            }
+
+            return $cart;
+        }, CartService::TRANSACTION_ATTEMPTS);
 
         return $this->cartSummary($cart);
     }
 
     public function remove($id): JsonResponse
     {
-        $cart = $this->getOrCreateCart();
-        $cart->items()->findOrFail($id)->delete();
+        $userId = auth()->id();
+
+        $cart = DB::transaction(function () use ($userId, $id) {
+            $cart = app(CartService::class)->lockForUser($userId);
+
+            $cart->items()
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->firstOrFail()
+                ->delete();
+
+            return $cart;
+        }, CartService::TRANSACTION_ATTEMPTS);
 
         return $this->cartSummary($cart);
     }
 
-    private function getOrCreateCart(): Cart
-    {
-        return Cart::firstOrCreate(['user_id' => auth()->id()]);
-    }
 
     private function cartSummary(Cart $cart): JsonResponse
     {

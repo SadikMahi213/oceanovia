@@ -28,25 +28,25 @@
                     <div>
                         <x-input-label for="name" value="Your Name" />
                         <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" value="{{ old('name') }}" required autocomplete="name" />
-                        <x-input-error :messages="$errors->get('name')" class="mt-1" />
+                        <x-input-error :messages="$errors->get('name')" field="name" class="mt-1" />
                     </div>
 
                     <div>
                         <x-input-label for="email" value="Email Address" />
                         <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" value="{{ old('email') }}" required autocomplete="email" />
-                        <x-input-error :messages="$errors->get('email')" class="mt-1" />
+                        <x-input-error :messages="$errors->get('email')" field="email" class="mt-1" />
                     </div>
 
                     <div>
                         <x-input-label for="phone" value="Phone (optional)" />
                         <x-text-input id="phone" name="phone" type="text" class="mt-1 block w-full" value="{{ old('phone') }}" autocomplete="tel" />
-                        <x-input-error :messages="$errors->get('phone')" class="mt-1" />
+                        <x-input-error :messages="$errors->get('phone')" field="phone" class="mt-1" />
                     </div>
 
                     <div>
                         <x-input-label for="subject" value="Subject" />
                         <x-text-input id="subject" name="subject" type="text" class="mt-1 block w-full" value="{{ old('subject') }}" required />
-                        <x-input-error :messages="$errors->get('subject')" class="mt-1" />
+                        <x-input-error :messages="$errors->get('subject')" field="subject" class="mt-1" />
                     </div>
                 </div>
 

@@ -21,6 +21,7 @@ class EmailLog extends Model
         'provider_message_id',
         'error_message',
         'batch_id',
+        'idempotency_key',
         'sent_at',
     ];
 

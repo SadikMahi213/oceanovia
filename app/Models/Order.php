@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Order extends Model
 {
@@ -55,9 +56,33 @@ class Order extends Model
     {
         static::creating(function (Order $order) {
             if (empty($order->order_number)) {
-                $order->order_number = 'ORD-' . strtoupper(uniqid());
+                $order->order_number = self::generateOrderNumber();
             }
         });
+    }
+
+    /**
+     * The number a new order carries.
+     *
+     * The number has to be unique across every process that can place an
+     * order, so it is built from a ULID: 48 bits of millisecond timestamp and
+     * 80 bits of randomness, rendered as 26 characters. Inside one process the
+     * generator is monotonic, so two orders created in the same millisecond
+     * never share a number, and the random part differs between processes, so
+     * two requests that create an order at the same moment do not collide
+     * either. The unique index on the column stays the last line of defence.
+     *
+     * uniqid() was not safe here: it is derived from the clock alone, so two
+     * processes that created an order in the same microsecond produced the
+     * same number and the second insert failed with a duplicate key error
+     * (MySQL 1062) instead of an order.
+     *
+     * The optional timestamp is what makes that guarantee testable: two calls
+     * for the same instant still return different numbers.
+     */
+    public static function generateOrderNumber(?\DateTimeInterface $time = null): string
+    {
+        return 'ORD-'.(string) Str::ulid($time);
     }
 
     // ─── Relationships ─────────────────────────────────────────────────────

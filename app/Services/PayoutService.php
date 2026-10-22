@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SellerBalance;
 use App\Models\SellerPayout;
 use App\Models\Transaction;
+use App\Support\TransactionRetry;
 use Illuminate\Support\Facades\DB;
 
 class PayoutService
@@ -28,6 +29,15 @@ class PayoutService
         return SellerBalance::whereKey($balance->getKey())->lockForUpdate()->first();
     }
 
+    /**
+     * Credit a seller.
+     *
+     * This runs inside the transaction of whoever calls it (the COD
+     * collection recording and the refund workflow), so it must not ask for
+     * retries of its own: Laravel cannot retry a nested transaction and
+     * would raise a DeadlockException instead. The enclosing transaction
+     * owns the retry behaviour.
+     */
     public function credit(int $sellerId, float $amount): void
     {
         DB::transaction(function () use ($sellerId, $amount) {
@@ -53,6 +63,12 @@ class PayoutService
         });
     }
 
+    /**
+     * Reverse a seller credit.
+     *
+     * Like credit(), this runs inside the transaction of the calling
+     * workflow, so the enclosing transaction owns any retry.
+     */
     public function reverse(int $sellerId, float $amount): void
     {
         DB::transaction(function () use ($sellerId, $amount) {
@@ -118,7 +134,7 @@ class PayoutService
             ]);
 
             return $payout;
-        });
+        }, TransactionRetry::ATTEMPTS);
     }
 
     public function approve(SellerPayout $payout): void
@@ -130,35 +146,61 @@ class PayoutService
         ]);
     }
 
+    /**
+     * Complete an approved payout.
+     *
+     * The payout status and the commissions it pays are one financial
+     * operation: if the commissions cannot be marked as paid, the payout must
+     * not stay completed either, otherwise the seller is recorded as paid
+     * while the money never reached their commissions.
+     */
     public function complete(SellerPayout $payout): void
     {
-        $payout->update([
-            'status'        => 'completed',
-            'completed_at'  => now(),
-        ]);
+        DB::transaction(function () use ($payout) {
+            $locked = SellerPayout::whereKey($payout->getKey())->lockForUpdate()->first();
 
-        app(CommissionService::class)->markAsPaid($payout->seller_id, $payout->id);
+            if ($locked === null) {
+                return;
+            }
+
+            $locked->update([
+                'status'        => 'completed',
+                'completed_at'  => now(),
+            ]);
+
+            app(CommissionService::class)->markAsPaid($locked->seller_id, $locked->id);
+        });
     }
 
     public function reject(SellerPayout $payout, string $reason = ''): void
     {
         DB::transaction(function () use ($payout, $reason) {
-            $balance = $this->lockBalance($payout->seller_id);
+            // The payout is re-read and locked inside the transaction. A retry
+            // must not reuse the model of a rolled back attempt: it would look
+            // unchanged, Eloquent would skip the update, and the balance would
+            // be refunded while the payout stayed pending.
+            $locked = SellerPayout::whereKey($payout->getKey())->lockForUpdate()->first();
 
-            $balance->increment('balance', $payout->amount);
-            $balance->decrement('total_withdrawn', $payout->amount);
+            if ($locked === null) {
+                return;
+            }
 
-            $payout->update([
+            $balance = $this->lockBalance($locked->seller_id);
+
+            $balance->increment('balance', $locked->amount);
+            $balance->decrement('total_withdrawn', $locked->amount);
+
+            $locked->update([
                 'status'           => 'rejected',
                 'rejected_at'      => now(),
                 'rejection_reason' => $reason,
             ]);
 
-            app(AuditService::class)->logFinancial('payout_rejected', $payout, [
-                'seller_id' => $payout->seller_id,
-                'amount'    => $payout->amount,
+            app(AuditService::class)->logFinancial('payout_rejected', $locked, [
+                'seller_id' => $locked->seller_id,
+                'amount'    => $locked->amount,
                 'reason'    => $reason,
             ]);
-        });
+        }, TransactionRetry::ATTEMPTS);
     }
 }

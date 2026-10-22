@@ -204,10 +204,26 @@ class Product extends Model
             ->where('status', 'draft');
     }
 
+    /**
+     * Match a barcode exactly.
+     *
+     * A barcode is an identity, not a word: it is compared with an equality
+     * check and never as a substring, and it stays a string so that a leading
+     * zero survives the comparison.
+     */
+    public function scopeBarcode($query, string $barcode)
+    {
+        return $query->where('barcode', $barcode);
+    }
+
     public function scopeSearch($query, string $term)
     {
         return $query->where(function ($q) use ($term) {
-            $q->where('name', 'like', "%{$term}%")
+            // A scanned barcode is matched exactly. The name, the description
+            // and the SKU keep the substring search they always had, so an
+            // ordinary text search behaves exactly as before.
+            $q->barcode($term)
+              ->orWhere('name', 'like', "%{$term}%")
               ->orWhere('description', 'like', "%{$term}%")
               ->orWhere('short_description', 'like', "%{$term}%")
               ->orWhere('sku', 'like', "%{$term}%")

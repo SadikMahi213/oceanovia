@@ -32,14 +32,14 @@
             <div>
                 <x-input-label for="name" :value="__('First Name')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
                 <x-text-input id="name" class="block mt-1.5 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 focus:ring-2 focus:ring-market-500/10 outline-none transition-all" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" placeholder="John" />
-                <x-input-error :messages="$errors->get('name')" class="mt-1.5" />
+                <x-input-error :messages="$errors->get('name')" field="name" class="mt-1.5" />
             </div>
 
             <!-- Last Name -->
             <div>
                 <x-input-label for="lastname" :value="__('Last Name')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
                 <x-text-input id="lastname" class="block mt-1.5 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 focus:ring-2 focus:ring-market-500/10 outline-none transition-all" type="text" name="lastname" :value="old('lastname')" autocomplete="family-name" placeholder="Doe" />
-                <x-input-error :messages="$errors->get('lastname')" class="mt-1.5" />
+                <x-input-error :messages="$errors->get('lastname')" field="lastname" class="mt-1.5" />
             </div>
         </div>
 
@@ -47,14 +47,14 @@
         <div>
             <x-input-label for="email" :value="__('Email address')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
             <x-text-input id="email" class="block mt-1.5 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 focus:ring-2 focus:ring-market-500/10 outline-none transition-all" type="email" name="email" :value="old('email')" required autocomplete="username" placeholder="you@example.com" />
-            <x-input-error :messages="$errors->get('email')" class="mt-1.5" />
+            <x-input-error :messages="$errors->get('email')" field="email" class="mt-1.5" />
         </div>
 
         <!-- Phone -->
         <div>
             <x-input-label for="phone" :value="__('Phone (optional)')" class="text-sm font-medium text-gray-700 dark:text-gray-300" />
             <x-text-input id="phone" class="block mt-1.5 w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded-xl text-sm focus:border-market-500 dark:focus:border-market-400 focus:ring-2 focus:ring-market-500/10 outline-none transition-all" type="text" name="phone" :value="old('phone')" placeholder="+1 (555) 000-0000" />
-            <x-input-error :messages="$errors->get('phone')" class="mt-1.5" />
+            <x-input-error :messages="$errors->get('phone')" field="phone" class="mt-1.5" />
         </div>
 
         <!-- Role Selection -->
@@ -99,7 +99,7 @@
                             name="password"
                             required autocomplete="new-password"
                             placeholder="••••••••" />
-            <x-input-error :messages="$errors->get('password')" class="mt-1.5" />
+            <x-input-error :messages="$errors->get('password')" field="password" class="mt-1.5" />
         </div>
 
         <!-- Confirm Password -->
@@ -109,7 +109,7 @@
                             type="password"
                             name="password_confirmation" required autocomplete="new-password"
                             placeholder="••••••••" />
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-1.5" />
+            <x-input-error :messages="$errors->get('password_confirmation')" field="password_confirmation" class="mt-1.5" />
         </div>
 
         <button type="submit" class="w-full flex items-center justify-center gap-2 px-5 py-3 bg-market-600 hover:bg-market-700 text-white font-medium rounded-xl transition-colors shadow-lg shadow-market-500/10">

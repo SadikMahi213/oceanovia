@@ -58,6 +58,33 @@
                                     Complete Refund
                                 </button>
                             </form>
+                        @elseif($refund->order?->payment_method === 'stripe' && $refund->status === 'approved')
+                            <div class="flex flex-wrap items-center gap-2">
+                                <form method="POST" action="{{ route('admin.refunds.approve', $refund) }}" class="flex items-center gap-2">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        Retry Refund
+                                    </button>
+                                </form>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                    The payment provider has not confirmed this refund yet. Retrying sends the same refund again.
+                                </p>
+                            </div>
+                        @elseif($refund->order?->payment_method === 'stripe' && $refund->status === 'stripe_refunded')
+                            <div class="flex flex-wrap items-center gap-2">
+                                <form method="POST" action="{{ route('admin.refunds.complete', $refund) }}" class="flex items-center gap-2">
+                                    @csrf
+                                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        Finish Refund
+                                    </button>
+                                </form>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                    The payment provider already refunded this amount. Finishing records the refund locally.
+                                </p>
+                            </div>
                         @endif
                     </div>
 
