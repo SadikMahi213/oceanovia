@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     barcodeScanner,
     cameraAccessProblem,
+    cameraDiagnostics,
     cameraErrorMessage,
     cameraErrorName,
     cameraMessages,
@@ -222,4 +223,100 @@ test('the view going away stops the camera as well', async () => {
     await new Promise((resolve) => setImmediate(resolve));
 
     assert.equal(tracks[0].stopped, true);
+});
+
+/**
+ * Captures console output from cameraDiagnostics so assertions can inspect it.
+ */
+function captureDiagnostics(context, error) {
+    const logs = [];
+    const originalGroupCollapsed = console.groupCollapsed;
+    const originalLog = console.log;
+    console.groupCollapsed = (...args) => logs.push({ type: 'group', args });
+    console.log = (...args) => logs.push({ type: 'log', args });
+    try {
+        cameraDiagnostics(error, context);
+    } finally {
+        console.groupCollapsed = originalGroupCollapsed;
+        console.log = originalLog;
+    }
+    return logs;
+}
+
+test('cameraDiagnostics captures secure context and camera API availability', () => {
+    const logs = captureDiagnostics(secureWindow(), { name: 'NotAllowedError', message: 'Permission denied' });
+
+    const logText = logs.map(l => JSON.stringify(l.args)).join(' ');
+    assert.match(logText, /secureContext.*true/);
+    assert.match(logText, /mediaDevices.*true/);
+    assert.match(logText, /getUserMedia.*true/);
+    assert.match(logText, /errorName.*NotAllowedError/);
+    assert.match(logText, /errorMessage.*Permission denied/);
+});
+
+test('cameraDiagnostics reports missing getUserMedia', () => {
+    const logs = captureDiagnostics(
+        { isSecureContext: true, navigator: { mediaDevices: {} }, self: window, top: window },
+        { name: 'NotSupportedError' },
+    );
+
+    const logText = logs.map(l => JSON.stringify(l.args)).join(' ');
+    assert.match(logText, /mediaDevices.*true/);
+    assert.match(logText, /getUserMedia.*false/);
+    assert.match(logText, /errorName.*NotSupportedError/);
+});
+
+test('cameraDiagnostics reports insecure context by not logging', () => {
+    const logs = captureDiagnostics(
+        { isSecureContext: false, navigator: {}, self: window, top: window },
+        { name: 'NotAllowedError' },
+    );
+
+    assert.equal(logs.length, 0, 'cameraDiagnostics should not log on insecure context');
+});
+
+test('cameraDiagnostics reports iframe context', () => {
+    const logs = captureDiagnostics(
+        { isSecureContext: true, navigator: { mediaDevices: { getUserMedia() {} } }, self: {}, top: {} },
+        { name: 'NotAllowedError' },
+    );
+
+    const logText = logs.map(l => JSON.stringify(l.args)).join(' ');
+    assert.match(logText, /inIframe.*true/);
+});
+
+test('cameraDiagnostics reports NotAllowedError after user grants permission', () => {
+    // Simulates the real-world scenario: user clicked "Allow" in Chrome but
+    // getUserMedia still rejects with NotAllowedError. The diagnostics capture
+    // the actual error name so the root cause can be identified (e.g.
+    // Permissions-Policy header, iframe without allow=camera, or Chrome not
+    // applying the permission until page reload).
+    const logs = captureDiagnostics(secureWindow(), { name: 'NotAllowedError' });
+
+    const logText = logs.map(l => JSON.stringify(l.args)).join(' ');
+    assert.match(logText, /errorName.*NotAllowedError/);
+    assert.match(logText, /inIframe/);
+    assert.match(logText, /secureContext.*true/);
+});
+
+test('cameraDiagnostics captures OverconstrainedError for bad camera constraints', () => {
+    const logs = captureDiagnostics(secureWindow(), {
+        name: 'OverconstrainedError',
+        message: 'Cannot satisfy facingMode environment constraint',
+    });
+
+    const logText = logs.map(l => JSON.stringify(l.args)).join(' ');
+    assert.match(logText, /errorName.*OverconstrainedError/);
+    assert.match(logText, /Cannot satisfy facingMode environment constraint/);
+});
+
+test('cameraDiagnostics captures NotReadableError for camera in use', () => {
+    const logs = captureDiagnostics(secureWindow(), {
+        name: 'NotReadableError',
+        message: 'Could not start video source',
+    });
+
+    const logText = logs.map(l => JSON.stringify(l.args)).join(' ');
+    assert.match(logText, /errorName.*NotReadableError/);
+    assert.match(logText, /Could not start video source/);
 });

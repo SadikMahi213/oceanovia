@@ -96,6 +96,52 @@ export function cameraErrorName(error) {
 }
 
 /**
+ * Temporary development diagnostics for camera access failures.
+ *
+ * Captures the page environment and the actual error so the root cause of a
+ * camera-start failure can be identified without guessing at browser state.
+ * Only runs in secure localhost-like contexts; never logs secrets.
+ *
+ * @param {object|string} error  the error the camera or the scanner reported
+ * @param {object} context  the window the page runs in
+ */
+export function cameraDiagnostics(error, context) {
+    if (! context || ! context.isSecureContext) {
+        return;
+    }
+
+    const info = {
+        secureContext: context.isSecureContext,
+        inIframe: context.self !== context.top,
+        mediaDevices: !!(
+            context.navigator && context.navigator.mediaDevices
+        ),
+        getUserMedia: !!(
+            context.navigator &&
+            context.navigator.mediaDevices &&
+            typeof context.navigator.mediaDevices.getUserMedia === 'function'
+        ),
+        errorName: cameraErrorName(error),
+        errorMessage: typeof error === 'string'
+            ? error.trim()
+            : (error && typeof error.message === 'string' ? error.message.trim() : ''),
+        constraints: { facingMode: 'environment', fps: 10, qrbox: { width: 250, height: 160 }, aspectRatio: 1.6 },
+    };
+
+    if (info.errorName) {
+        console.groupCollapsed('[barcode-scanner] camera diagnostics');
+        console.log('secureContext:', info.secureContext);
+        console.log('inIframe:', info.inIframe);
+        console.log('mediaDevices:', info.mediaDevices);
+        console.log('getUserMedia:', info.getUserMedia);
+        console.log('errorName:', info.errorName);
+        console.log('errorMessage:', info.errorMessage);
+        console.log('constraints:', info.constraints);
+        console.groupEnd();
+    }
+}
+
+/**
  * The message for an error the camera reported while it was starting.
  *
  * @param {object|string} error  the error the browser or the scanner reported
@@ -163,6 +209,7 @@ export function barcodeScanner(target, readerId) {
         starting: false,
         handled: false,
         submitted: false,
+        $trigger: null,
 
         init() {
             // Leaving the page releases the camera as well.
@@ -176,13 +223,17 @@ export function barcodeScanner(target, readerId) {
             this.stop();
         },
 
-        async open() {
+        async open(event = {}) {
             // The camera is already running for this field: opening it again
             // must not reset the guards that keep a second scan and a second
             // submission from happening.
             if (this.starting || (this.show && this.scanner)) {
                 return;
             }
+
+            // Remember the trigger so focus can be restored when the modal
+            // closes. Supports programmatic calls without an event.
+            this.$trigger = event.currentTarget || null;
 
             this.error = '';
             this.status = '';
@@ -202,6 +253,15 @@ export function barcodeScanner(target, readerId) {
             } finally {
                 this.starting = false;
             }
+
+            // Move keyboard focus into the modal: focus the close button so
+            // the operator can dismiss it without a mouse.
+            setTimeout(() => {
+                const closeButton = document.querySelector('[aria-label="Close the scanner"]');
+                if (closeButton && typeof closeButton.focus === 'function') {
+                    closeButton.focus();
+                }
+            }, 100);
         },
 
         async start() {
@@ -296,6 +356,11 @@ export function barcodeScanner(target, readerId) {
             this.scanner = null;
             this.status = '';
             this.error = cameraErrorMessage(error);
+
+            // Temporary development diagnostics: capture the environment and
+            // the actual error so the root cause of a camera-start failure can
+            // be identified. Disabled on non-secure contexts.
+            cameraDiagnostics(error, window);
         },
 
         /**
@@ -413,9 +478,19 @@ export function barcodeScanner(target, readerId) {
         },
 
         async close() {
+            // Remember the trigger before the modal disappears so focus can be
+            // restored to it after the camera is released.
+            const trigger = this.$trigger;
             this.show = false;
 
             await this.stop();
+
+            this.$trigger = null;
+
+            // Restore focus to the element that opened the modal.
+            if (trigger && typeof trigger.focus === 'function') {
+                trigger.focus();
+            }
         },
     };
 }
