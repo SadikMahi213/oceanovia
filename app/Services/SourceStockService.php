@@ -21,6 +21,66 @@ use Illuminate\Validation\ValidationException;
 class SourceStockService
 {
     /**
+     * Partition supplier source stock for cart items: reserve what is available
+     * and report the shortfall. Row-locked against oversell.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\CartItem>  $cartItems
+     * @return array{confirmed: array<int,int>, held: array<int,int>}
+     */
+    public function partitionForCart(Collection $cartItems): \App\Support\StockPartition
+    {
+        $supplierProductIds = [];
+
+        foreach ($cartItems as $item) {
+            $product = $item->product;
+
+            if (! $product || ! $product->supplier_product_id) {
+                continue;
+            }
+
+            $supplierProductIds[(int) $product->supplier_product_id] = true;
+        }
+
+        ksort($supplierProductIds);
+
+        $locked = [];
+        foreach (array_keys($supplierProductIds) as $supplierProductId) {
+            $locked[$supplierProductId] = SupplierProductStock::where('supplier_product_id', $supplierProductId)
+                ->lockForUpdate()
+                ->first();
+        }
+
+        $confirmed = [];
+        $held = [];
+
+        foreach ($cartItems as $item) {
+            $product = $item->product;
+
+            if (! $product || ! $product->supplier_product_id) {
+                continue;
+            }
+
+            $stock = $locked[(int) $product->supplier_product_id] ?? null;
+            $available = $stock ? $stock->stock_quantity - $stock->reserved_quantity : 0;
+
+            $reservedQty = min($item->quantity, $available);
+
+            if ($reservedQty > 0) {
+                if ($stock) {
+                    $stock->increment('reserved_quantity', $reservedQty);
+                }
+                $confirmed[$item->id] = $reservedQty;
+            }
+
+            if ($reservedQty < $item->quantity) {
+                $held[$item->id] = $item->quantity - $reservedQty;
+            }
+        }
+
+        return new \App\Support\StockPartition($confirmed, $held);
+    }
+
+    /**
      * Reserve units for cart items at checkout. Row-locked against oversell.
      *
      * @param  \Illuminate\Support\Collection<int, \App\Models\CartItem>  $cartItems
@@ -139,6 +199,16 @@ class SourceStockService
 
             $this->releaseReserved($item->supplier_product_id, $item->quantity);
         }
+    }
+
+    /**
+     * Release a specific number of reserved units for one supplier product.
+     * Used by the stock-hold decline path, which releases only the portion
+     * that was actually reserved.
+     */
+    public function releaseReservedUnits(int $supplierProductId, int $quantity): void
+    {
+        $this->releaseReserved($supplierProductId, $quantity);
     }
 
     private function releaseReserved(int $supplierProductId, int $quantity): void

@@ -181,12 +181,12 @@ class ProcurementTest extends TestCase
 
         $response = $this->checkoutCod($customer, $product, 2, $address);
 
-        $response->assertSessionHasErrors('cart');
+        $response->assertRedirect();
         $this->assertSame(0, ProcurementOrder::count());
-        $this->assertSame(0, \App\Models\Order::count());
+        $this->assertSame(1, \App\Models\Order::count());
 
         $stock = SupplierProductStock::where('supplier_product_id', $sp->id)->firstOrFail();
-        $this->assertSame(0, $stock->reserved_quantity);
+        $this->assertSame(1, $stock->reserved_quantity);
         $this->assertSame(1, $stock->stock_quantity);
     }
 

@@ -253,13 +253,16 @@ class ApiCodCheckoutTest extends TestCase
             'shipping_address_id' => $address->id,
             'billing_address_id'  => $address->id,
             'payment_method'      => 'cod',
-        ])->assertStatus(422)->assertJsonValidationErrors('cart');
+        ])->assertCreated();
 
-        $this->assertSame(0, Order::count());
-        $this->assertSame(0, OrderItem::count());
+        $this->assertSame(1, Order::count());
+        $order = Order::firstOrFail();
+        $this->assertSame(1, OrderItem::where('order_id', $order->id)->where('status', 'awaiting_stock')->count());
+        $item = OrderItem::where('order_id', $order->id)->firstOrFail();
+        $this->assertSame(1, $item->held_quantity);
         $this->assertSame(0, Commission::count());
         $this->assertSame(0, CodCollection::count());
-        $this->assertSame(1, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
+        $this->assertSame(0, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
     }
 
     public function test_api_checkout_rejects_insufficient_source_stock(): void
@@ -297,12 +300,12 @@ class ApiCodCheckoutTest extends TestCase
             'shipping_address_id' => $address->id,
             'billing_address_id'  => $address->id,
             'payment_method'      => 'cod',
-        ])->assertStatus(422)->assertJsonValidationErrors('cart');
+        ])->assertCreated();
 
-        $this->assertSame(0, Order::count());
+        $this->assertSame(1, Order::count());
         $this->assertSame(0, Commission::count());
         $this->assertSame(
-            0,
+            1,
             SupplierProductStock::where('supplier_product_id', $supplierProduct->id)->firstOrFail()->reserved_quantity
         );
     }
@@ -355,11 +358,11 @@ class ApiCodCheckoutTest extends TestCase
             'shipping_address_id' => $address->id,
             'billing_address_id'  => $address->id,
             'payment_method'      => 'cod',
-        ])->assertStatus(422);
+        ])->assertCreated();
 
-        $this->assertSame(1, Cart::count());
-        $this->assertSame(1, CartItem::count());
-        $this->assertSame(2, CartItem::firstOrFail()->quantity);
+        $this->assertSame(0, Cart::count());
+        $this->assertSame(0, CartItem::count());
+        $this->assertSame(1, Order::count());
     }
 
     public function test_repeated_api_checkout_does_not_duplicate_commissions_or_reservations(): void

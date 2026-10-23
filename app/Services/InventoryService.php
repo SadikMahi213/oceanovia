@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Cart;
 use App\Models\Inventory;
+use App\Support\StockPartition;
 use Illuminate\Validation\ValidationException;
 
 class InventoryService
@@ -28,25 +29,45 @@ class InventoryService
      */
     public function reserveAndDecrementForCart(Cart $cart): void
     {
-        $this->sourceStock->reserveForCart($cart->items);
+        $partition = $this->partitionForCart($cart);
 
-        // Collect the inventory rows this operation touches, then lock them
-        // in a deterministic ascending order before making any decision that
-        // depends on their current quantity. Two carts holding the same
-        // products would otherwise lock the rows in whatever order their
-        // items happen to be listed and can deadlock each other.
+        if ($partition->hasHeld()) {
+            $firstHeld = null;
+
+            foreach ($cart->items as $item) {
+                if (($partition->held[$item->id] ?? 0) > 0) {
+                    $firstHeld = $item->product?->name;
+                    break;
+                }
+            }
+
+            throw ValidationException::withMessages([
+                'cart' => 'Insufficient stock for "'.($firstHeld ?? 'an item').'". Please adjust your cart.',
+            ]);
+        }
+    }
+
+    /**
+     * Partition the cart's requested quantities against the stock that is
+     * actually available. Reserve only what can be fulfilled and record the
+     * shortfall as held. The locking protocol is identical to the strict
+     * reserve path, so the deterministic lock ordering is preserved.
+     *
+     * @return \App\Support\StockPartition
+     */
+    public function partitionForCart(Cart $cart): StockPartition
+    {
+        // Source stock first (supplier products), row-locked deterministically.
+        $sourceResult = $this->sourceStock->partitionForCart($cart->items);
+
+        // Collect the local inventory rows this operation touches, then lock
+        // them in a deterministic ascending order before making any decision.
         $inventoryIds = [];
 
         foreach ($cart->items as $item) {
             $product = $item->product;
 
-            if (! $product) {
-                continue;
-            }
-
-            // Sourced items reserve supplier source stock instead of the
-            // per-listing inventory row; skip to avoid double-decrementing.
-            if ($product->supplier_product_id) {
+            if (! $product || $product->supplier_product_id) {
                 continue;
             }
 
@@ -64,7 +85,11 @@ class InventoryService
             $locked[$inventoryId] = Inventory::whereKey($inventoryId)->lockForUpdate()->first();
         }
 
-        // Re-check every quantity against the row we actually locked.
+        $confirmed = $sourceResult->confirmed;
+        $held = $sourceResult->held;
+
+        // Re-check every quantity against the row we actually locked, and
+        // reserve only the available portion of each local item.
         foreach ($cart->items as $item) {
             $product = $item->product;
 
@@ -75,22 +100,55 @@ class InventoryService
             $inventory = $product->inventory;
 
             if (! $inventory) {
+                // Not stock-managed: treat the whole requested quantity as
+                // confirmed, matching the original semantics.
+                $confirmed[$item->id] = $item->quantity;
                 continue;
             }
 
-            $inventory = $locked[$inventory->id] ?? null;
+            $row = $locked[$inventory->id] ?? null;
 
-            if (! $inventory) {
+            if (! $row) {
+                $confirmed[$item->id] = $item->quantity;
                 continue;
             }
 
-            if ($inventory->stock_quantity < $item->quantity) {
-                throw ValidationException::withMessages([
-                    'cart' => "Insufficient stock for \"{$product->name}\". Please adjust your cart.",
-                ]);
+            $available = (int) $row->stock_quantity;
+            $reservedQty = min($item->quantity, $available);
+
+            if ($reservedQty > 0) {
+                $row->decrement('stock_quantity', $reservedQty);
             }
 
-            $inventory->decrement('stock_quantity', $item->quantity);
+            if ($reservedQty >= $item->quantity) {
+                $confirmed[$item->id] = $item->quantity;
+            } else {
+                if ($reservedQty > 0) {
+                    $confirmed[$item->id] = $reservedQty;
+                }
+                $shortfall = $item->quantity - $reservedQty;
+                if ($shortfall > 0) {
+                    $held[$item->id] = $shortfall;
+                }
+            }
         }
+
+        // Items not present in either map (no inventory row handled above
+        // already) default to confirmed for sourced items handled by source
+        // stock; for sourced items the source result already populated the map.
+        foreach ($cart->items as $item) {
+            if (! isset($confirmed[$item->id]) && ! isset($held[$item->id])) {
+                $product = $item->product;
+
+                if ($product && $product->supplier_product_id) {
+                    // Already handled by the source result; leave as-is.
+                    continue;
+                }
+
+                $confirmed[$item->id] = $item->quantity;
+            }
+        }
+
+        return new StockPartition($confirmed, $held);
     }
 }

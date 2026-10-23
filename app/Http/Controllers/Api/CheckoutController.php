@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Services\CheckoutService;
 use App\Services\CommissionService;
 use App\Services\InventoryService;
 use App\Services\ShippingService;
+use App\Services\StockHoldService;
 use App\Services\TaxService;
 use App\Support\PaymentGateway;
 use Illuminate\Http\JsonResponse;
@@ -89,9 +91,32 @@ class CheckoutController extends Controller
             $shippingAddress = Address::where('user_id', auth()->id())->findOrFail($validated['shipping_address_id']);
             $billingAddress = Address::where('user_id', auth()->id())->findOrFail($validated['billing_address_id']);
 
-            $subtotal = $cart->total;
+            $partition = app(InventoryService::class)->partitionForCart($cart);
+
+            $confirmedSubtotal = 0.0;
+            foreach ($cart->items as $item) {
+                $confirmedSubtotal += (float) $item->unit_price * $partition->confirmedQuantity($item->id);
+            }
+            $subtotal = round($confirmedSubtotal, 2);
+
+            $shippingCart = new Cart();
+            $shippingItems = collect();
+            foreach ($cart->items as $item) {
+                $confirmedQty = $partition->confirmedQuantity($item->id);
+                if ($confirmedQty <= 0) {
+                    continue;
+                }
+                $ci = new CartItem();
+                $ci->product_id = $item->product_id;
+                $ci->quantity = $confirmedQty;
+                $ci->unit_price = $item->unit_price;
+                $ci->setRelation('product', $item->product);
+                $shippingItems->push($ci);
+            }
+            $shippingCart->setRelation('items', $shippingItems);
+
             $shippingService = app(ShippingService::class);
-            $shippingCost = $shippingService->calculate($cart, $shippingAddress)['total'];
+            $shippingCost = $shippingService->calculate($shippingCart, $shippingAddress)['total'];
             $taxService = app(TaxService::class);
             $taxResult = $taxService->calculate($subtotal, $shippingAddress->state);
             $tax = $taxResult['amount'];
@@ -114,6 +139,8 @@ class CheckoutController extends Controller
 
             foreach ($cart->items as $item) {
                 $product = $item->product;
+                $heldQty = $partition->heldQuantity($item->id);
+                $confirmedQty = $partition->confirmedQuantity($item->id);
 
                 OrderItem::create([
                     'order_id' => $order->id,
@@ -125,25 +152,24 @@ class CheckoutController extends Controller
                     'product_name' => $product->name,
                     'sku' => $product->sku,
                     'quantity' => $item->quantity,
+                    'held_quantity' => $heldQty,
+                    'stock_held_at' => $heldQty > 0 ? now() : null,
                     'unit_price' => $item->unit_price,
-                    'subtotal' => $item->subtotal,
+                    'subtotal' => $item->unit_price * $confirmedQty,
+                    'status' => $heldQty > 0 ? OrderItem::STATUS_AWAITING_STOCK : 'pending',
                 ]);
             }
 
             app(CommissionService::class)->createCommissions($order);
 
-            // Commit the stock for this order inside the same transaction, so
-            // an insufficient-stock failure rolls the whole order back.
-            app(InventoryService::class)->reserveAndDecrementForCart($cart);
-
             $cart->items()->delete();
             $cart->delete();
 
-            // Cash on delivery is completed inside the transaction, so a
-            // failure while opening the procurement order or the cash
-            // collection rolls the order, the stock movement and the cart
-            // consumption back together.
-            if ($validated['payment_method'] === 'cod') {
+            $hasConfirmedItem = $order->items()
+                ->where('status', '!=', OrderItem::STATUS_AWAITING_STOCK)
+                ->exists();
+
+            if ($validated['payment_method'] === 'cod' && $hasConfirmedItem) {
                 app(CheckoutService::class)->finaliseCodOrder($order);
             }
 
@@ -161,11 +187,22 @@ class CheckoutController extends Controller
         // a failing notification or audit job must not fail the request.
         app(CheckoutService::class)->dispatchPostCommitEffects($order);
 
-        if ($validated['payment_method'] === 'stripe') {
+        foreach ($order->items()->where('status', OrderItem::STATUS_AWAITING_STOCK)->get() as $heldItem) {
+            app(StockHoldService::class)->notifyHeldItem($heldItem);
+        }
+
+        if ($validated['payment_method'] === 'stripe' && (float) $order->total > 0) {
             return response()->json([
                 'message' => 'Order created successfully.',
                 'data' => $order,
                 'payment_url' => route('checkout.index').'?order='.$order->id,
+            ], 201);
+        }
+
+        if ($validated['payment_method'] === 'stripe') {
+            return response()->json([
+                'message' => 'Order created. Some items are awaiting stock confirmation.',
+                'data' => $order,
             ], 201);
         }
 

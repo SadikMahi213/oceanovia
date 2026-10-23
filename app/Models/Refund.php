@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Refund extends Model
 {
@@ -15,6 +16,7 @@ class Refund extends Model
         'order_item_id',
         'user_id',
         'amount',
+        'reversed_amount',
         'reason',
         'status',
         'refund_method',
@@ -35,6 +37,7 @@ class Refund extends Model
     {
         return [
             'amount'            => 'decimal:2',
+            'reversed_amount'   => 'decimal:2',
             'approved_at'       => 'datetime',
             'rejected_at'       => 'datetime',
             'completed_at'      => 'datetime',
@@ -55,6 +58,11 @@ class Refund extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function reversals(): HasMany
+    {
+        return $this->hasMany(RefundReversal::class);
     }
 
     public function approver(): BelongsTo

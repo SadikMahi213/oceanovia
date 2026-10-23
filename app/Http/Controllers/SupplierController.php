@@ -26,6 +26,8 @@ use App\Models\UserNotification;
 use App\Services\AuditService;
 use App\Services\OrderCancellationService;
 use App\Services\ProcurementService;
+use App\Services\StockHoldService;
+use App\Services\SupplierPayoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -341,6 +343,31 @@ class SupplierController extends Controller
         }
 
         return view('supplier.orders.show', compact('order', 'items'));
+    }
+
+    public function confirmStock(Order $order, OrderItem $item): RedirectResponse
+    {
+        if ($item->order_id !== $order->id || $item->supplier_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $confirmed = app(StockHoldService::class)->confirm($item, auth()->id());
+
+        return redirect()->back()->with(
+            'success',
+            $confirmed ? 'Stock confirmed for the item.' : 'Partial stock confirmed; the item is still awaiting the remaining units.'
+        );
+    }
+
+    public function declineStock(Order $order, OrderItem $item): RedirectResponse
+    {
+        if ($item->order_id !== $order->id || $item->supplier_id !== auth()->id()) {
+            abort(403);
+        }
+
+        app(StockHoldService::class)->decline($item, auth()->id());
+
+        return redirect()->back()->with('success', 'Stock declined for the item.');
     }
 
     public function orderFulfill(Request $request, Order $order): RedirectResponse
@@ -865,7 +892,7 @@ class SupplierController extends Controller
         return view('supplier.wallet.index', compact('balance', 'payouts', 'recentTransactions'));
     }
 
-    public function payoutRequest(Request $request): RedirectResponse
+    public function payoutRequest(Request $request, SupplierPayoutService $payouts): RedirectResponse
     {
         $supplierId = auth()->id();
 
@@ -876,51 +903,7 @@ class SupplierController extends Controller
         ]);
 
         try {
-            $payout = DB::transaction(function () use ($supplierId, $validated) {
-                $balance = SupplierBalance::where('supplier_id', $supplierId)->lockForUpdate()->first();
-
-                if (! $balance) {
-                    throw new \RuntimeException('Supplier balance not found.');
-                }
-
-                if ($validated['amount'] > $balance->balance) {
-                    throw ValidationException::withMessages([
-                        'amount' => 'Requested amount exceeds your available balance.',
-                    ]);
-                }
-
-                $platformFee = $validated['amount'] * 0.02;
-                $tax = $validated['amount'] * 0.01;
-                $netAmount = $validated['amount'] - $platformFee - $tax;
-
-                $payout = SupplierPayout::create([
-                    'supplier_id' => $supplierId,
-                    'amount' => $validated['amount'],
-                    'platform_fee' => $platformFee,
-                    'tax' => $tax,
-                    'net_amount' => $netAmount,
-                    'payment_method' => $validated['payment_method'],
-                    'account_details' => $validated['account_details'],
-                    'status' => 'pending',
-                ]);
-
-                $balance->decrement('balance', $validated['amount']);
-                $balance->increment('pending_balance', $validated['amount']);
-
-                Transaction::create([
-                    'accountable_type' => SupplierBalance::class,
-                    'accountable_id' => $balance->id,
-                    'reference_type' => SupplierPayout::class,
-                    'reference_id' => $payout->id,
-                    'type' => 'payout',
-                    'amount' => $validated['amount'],
-                    'description' => 'Payout requested',
-                    'status' => 'pending',
-                    'method' => $validated['payment_method'],
-                ]);
-
-                return $payout;
-            });
+            $payouts->request($supplierId, $validated);
         } catch (ValidationException $e) {
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {

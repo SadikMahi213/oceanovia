@@ -169,15 +169,16 @@ class CheckoutConcurrencyTest extends TestCase
             'shipping_address_id' => $address->id,
             'payment_method'      => 'cod',
             'billing_same'        => '1',
-        ])->assertSessionHasErrors('cart');
+        ])->assertRedirect();
 
-        $this->assertSame(0, Order::count());
-        $this->assertSame(0, OrderItem::count());
+        $this->assertSame(1, Order::count());
+        $order = Order::firstOrFail();
+        $this->assertSame(1, OrderItem::where('order_id', $order->id)->where('status', 'awaiting_stock')->count());
         $this->assertSame(0, Commission::count());
         $this->assertSame(0, CodCollection::count());
         $this->assertSame(0, ProcurementOrder::count());
-        $this->assertSame(1, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
-        $this->assertSame(1, CartItem::count());
+        $this->assertSame(0, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
+        $this->assertSame(0, CartItem::count());
     }
 
     public function test_failure_during_procurement_creation_rolls_back_the_checkout(): void
@@ -378,14 +379,14 @@ class CheckoutConcurrencyTest extends TestCase
             'shipping_address_id' => $address->id,
             'billing_address_id'  => $address->id,
             'payment_method'      => 'cod',
-        ])->assertStatus(422)->assertJsonValidationErrors('cart');
+        ])->assertCreated();
 
-        $this->assertSame(0, Order::count());
-        $this->assertSame(0, OrderItem::count());
+        $this->assertSame(1, Order::count());
+        $this->assertSame(1, OrderItem::count());
         $this->assertSame(0, Commission::count());
         $this->assertSame(0, CodCollection::count());
         $this->assertSame(0, ProcurementOrder::count());
-        $this->assertSame(1, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
+        $this->assertSame(0, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
     }
 
     public function test_api_checkout_persists_the_full_cod_lifecycle(): void

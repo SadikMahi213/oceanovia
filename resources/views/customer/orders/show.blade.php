@@ -105,6 +105,12 @@
                                                     </div>
                                                     <div>
                                                         <p class="font-medium text-gray-900 dark:text-white">{{ $item->product_name ?? $item->product?->name }}</p>
+                                                        @if($item->status === 'awaiting_stock')
+                                                            <span class="inline-flex items-center px-2 py-0.5 mt-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Awaiting stock confirmation</span>
+                                                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">We're checking availability with the seller.</p>
+                                                        @elseif($item->status === 'cancelled')
+                                                            <span class="inline-flex items-center px-2 py-0.5 mt-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Cancelled</span>
+                                                        @endif
                                                         @if($item->product)
                                                             <a href="{{ route('products.show', $item->product->slug) }}" class="text-xs text-market-600 dark:text-market-400 hover:underline">View Product</a>
                                                         @endif

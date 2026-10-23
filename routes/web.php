@@ -136,6 +136,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
 
 
+    Route::get('supplier-payouts', [App\Http\Controllers\Admin\SupplierPayoutController::class, 'index'])->name('supplier-payouts.index');
+    Route::get('supplier-payouts/{supplierPayout}', [App\Http\Controllers\Admin\SupplierPayoutController::class, 'show'])->name('supplier-payouts.show');
+    Route::post('supplier-payouts/{supplierPayout}/approve', [App\Http\Controllers\Admin\SupplierPayoutController::class, 'approve'])->name('supplier-payouts.approve');
+    Route::post('supplier-payouts/{supplierPayout}/complete', [App\Http\Controllers\Admin\SupplierPayoutController::class, 'complete'])->name('supplier-payouts.complete');
+    Route::post('supplier-payouts/{supplierPayout}/reject', [App\Http\Controllers\Admin\SupplierPayoutController::class, 'reject'])->name('supplier-payouts.reject');
+
     Route::get('payouts', [App\Http\Controllers\Admin\PayoutController::class, 'index'])->name('payouts.index');
     Route::get('payouts/{payout}', [App\Http\Controllers\Admin\PayoutController::class, 'show'])->name('payouts.show');
     Route::post('payouts/{payout}/approve', [App\Http\Controllers\Admin\PayoutController::class, 'approve'])->name('payouts.approve');
@@ -230,6 +236,8 @@ Route::prefix('seller')->name('seller.')->middleware(['auth', 'role:seller'])->g
     Route::get('/orders', [App\Http\Controllers\SellerController::class, 'orders'])->name('orders.index');
     Route::get('/orders/{order}', [App\Http\Controllers\SellerController::class, 'orderShow'])->name('orders.show');
     Route::patch('/orders/{order}/status', [App\Http\Controllers\SellerController::class, 'updateOrderStatus'])->name('orders.update-status');
+    Route::post('/orders/{order}/items/{item}/stock/confirm', [App\Http\Controllers\SellerController::class, 'confirmStock'])->name('stock.confirm');
+    Route::post('/orders/{order}/items/{item}/stock/decline', [App\Http\Controllers\SellerController::class, 'declineStock'])->name('stock.decline');
     Route::get('/profile', [App\Http\Controllers\SellerController::class, 'profile'])->name('profile');
     Route::put('/profile', [App\Http\Controllers\SellerController::class, 'profileUpdate'])->name('profile.update');
     Route::get('/analytics', [App\Http\Controllers\SellerController::class, 'analytics'])->name('analytics');
@@ -320,6 +328,8 @@ Route::prefix('supplier')->name('supplier.')->middleware(['auth', 'role:supplier
     Route::get('/orders/returned', [App\Http\Controllers\SupplierController::class, 'ordersReturned'])->name('orders.returned');
     Route::get('/orders/cancelled', [App\Http\Controllers\SupplierController::class, 'ordersCancelled'])->name('orders.cancelled');
     Route::get('/orders/{order}', [App\Http\Controllers\SupplierController::class, 'orderShow'])->name('orders.show');
+    Route::post('/orders/{order}/items/{item}/stock/confirm', [App\Http\Controllers\SupplierController::class, 'confirmStock'])->name('stock.confirm');
+    Route::post('/orders/{order}/items/{item}/stock/decline', [App\Http\Controllers\SupplierController::class, 'declineStock'])->name('stock.decline');
     Route::patch('/orders/{order}/fulfill', [App\Http\Controllers\SupplierController::class, 'orderFulfill'])->name('orders.fulfill');
     Route::post('/orders/{order}/accept', [App\Http\Controllers\SupplierController::class, 'orderAccept'])->name('orders.accept');
     Route::post('/orders/{order}/reject', [App\Http\Controllers\SupplierController::class, 'orderReject'])->name('orders.reject');

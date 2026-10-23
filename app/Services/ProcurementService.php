@@ -52,6 +52,7 @@ class ProcurementService
     {
         $items = OrderItem::where('order_id', $order->id)
             ->whereNotNull('supplier_product_id')
+            ->where('status', '!=', OrderItem::STATUS_AWAITING_STOCK)
             ->get();
 
         if ($items->isEmpty()) {
@@ -475,6 +476,7 @@ class ProcurementService
         $rank = [
             'cancelled'        => 0,
             'returned'         => 1,
+            'awaiting_stock'   => 1,
             'pending'          => 2,
             'processing'       => 3,
             'packed'           => 4,

@@ -10,6 +10,11 @@ class SupplierPayout extends Model
 {
     use HasFactory;
 
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_PROCESSING = 'processing';
+    public const STATUS_COMPLETED = 'completed';
+    public const STATUS_REJECTED = 'rejected';
+
     protected $fillable = [
         'supplier_id',
         'amount',
@@ -55,6 +60,11 @@ class SupplierPayout extends Model
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
+    }
+
+    public function scopeProcessing($query)
+    {
+        return $query->where('status', self::STATUS_PROCESSING);
     }
 
     public function scopeCompleted($query)

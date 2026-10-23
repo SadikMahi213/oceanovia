@@ -21,6 +21,10 @@ class OrderItem extends Model
         'product_name',
         'sku',
         'quantity',
+        'held_quantity',
+        'stock_held_at',
+        'stock_confirmed_at',
+        'stock_declined_at',
         'unit_price',
         'subtotal',
         'status',
@@ -29,10 +33,14 @@ class OrderItem extends Model
     protected function casts(): array
     {
         return [
-            'quantity'   => 'integer',
-            'unit_price' => 'decimal:2',
-            'unit_cost'  => 'decimal:2',
-            'subtotal'   => 'decimal:2',
+            'quantity'          => 'integer',
+            'held_quantity'     => 'integer',
+            'stock_held_at'     => 'datetime',
+            'stock_confirmed_at'=> 'datetime',
+            'stock_declined_at' => 'datetime',
+            'unit_price'        => 'decimal:2',
+            'unit_cost'         => 'decimal:2',
+            'subtotal'          => 'decimal:2',
         ];
     }
 
@@ -74,5 +82,27 @@ class OrderItem extends Model
     public function getNetForSellerAttribute(): float
     {
         return round((float) $this->subtotal - (float) ($this->unit_cost ?? 0) * $this->quantity, 2);
+    }
+
+    // ─── Stock hold ─────────────────────────────────────────────────────────
+
+    public const STATUS_AWAITING_STOCK = 'awaiting_stock';
+
+    /**
+     * Whether this item is waiting for the seller/supplier to confirm that the
+     * shortfall can be sourced.
+     */
+    public function isStockHeld(): bool
+    {
+        return $this->status === self::STATUS_AWAITING_STOCK;
+    }
+
+    /**
+     * The quantity that was actually reserved and is billable. The requested
+     * quantity minus the shortfall that is held.
+     */
+    public function confirmedQuantity(): int
+    {
+        return max(0, (int) $this->quantity - (int) $this->held_quantity);
     }
 }

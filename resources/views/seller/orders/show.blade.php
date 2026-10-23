@@ -69,6 +69,20 @@
                                                             </div>
                                                             <div class="min-w-0">
                                                                 <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $item->product_name }}</p>
+                                                                @if($item->status === 'awaiting_stock')
+                                                                    <span class="inline-flex items-center px-2 py-0.5 mt-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">Awaiting stock confirmation</span>
+                                                                    <p class="text-xs text-amber-700 dark:text-amber-300 mt-1">{{ $item->held_quantity }} unit(s) held</p>
+                                                                    <div class="flex items-center gap-2 mt-2">
+                                                                        <form method="POST" action="{{ route('seller.stock.confirm', [$order, $item]) }}">
+                                                                            @csrf
+                                                                            <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-lg transition-colors">Confirm stock</button>
+                                                                        </form>
+                                                                        <form method="POST" action="{{ route('seller.stock.decline', [$order, $item]) }}">
+                                                                            @csrf
+                                                                            <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors">Decline</button>
+                                                                        </form>
+                                                                    </div>
+                                                                @endif
                                                             </div>
                                                         </div>
                                                     </td>

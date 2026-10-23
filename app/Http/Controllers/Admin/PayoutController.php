@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\PayoutStateException;
 use App\Http\Controllers\Controller;
 use App\Models\SellerPayout;
 use App\Services\PayoutService;
@@ -33,7 +34,14 @@ class PayoutController extends Controller
             return redirect()->back()->with('error', 'Only pending payouts can be approved.');
         }
 
-        $payoutService->approve($payout);
+        try {
+            $payoutService->approve($payout);
+        } catch (PayoutStateException $e) {
+            // The service is the boundary that keeps the payout on its path.
+            // The check above is for the message, this one for the case that
+            // another request moved the payout in the meantime.
+            return redirect()->back()->with('error', 'Only pending payouts can be approved.');
+        }
 
         return redirect()->route('admin.payouts.index')
             ->with('success', 'Payout approved successfully.');
@@ -45,7 +53,11 @@ class PayoutController extends Controller
             return redirect()->back()->with('error', 'Only approved payouts can be completed.');
         }
 
-        $payoutService->complete($payout);
+        try {
+            $payoutService->complete($payout);
+        } catch (PayoutStateException $e) {
+            return redirect()->back()->with('error', 'Only approved payouts can be completed.');
+        }
 
         return redirect()->route('admin.payouts.index')
             ->with('success', 'Payout completed successfully.');
@@ -61,7 +73,11 @@ class PayoutController extends Controller
             'reason' => 'nullable|string|max:1000',
         ]);
 
-        $payoutService->reject($payout, $validated['reason'] ?? '');
+        try {
+            $payoutService->reject($payout, $validated['reason'] ?? '');
+        } catch (PayoutStateException $e) {
+            return redirect()->back()->with('error', 'Only pending payouts can be rejected.');
+        }
 
         return redirect()->route('admin.payouts.index')
             ->with('success', 'Payout rejected successfully.');

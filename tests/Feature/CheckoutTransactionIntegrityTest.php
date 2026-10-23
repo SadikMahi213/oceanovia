@@ -472,7 +472,7 @@ class CheckoutTransactionIntegrityTest extends TestCase
         $address = $this->addressFor($customer);
         $product = $this->productWithStock($seller, 1);
 
-        // More than the available stock, so the checkout fails and rolls back.
+        // More than the available stock: the item is held, not rejected.
         $this->fillCart($customer, $product, 5);
 
         Event::fake([OrderPlaced::class]);
@@ -482,15 +482,15 @@ class CheckoutTransactionIntegrityTest extends TestCase
             'shipping_address_id' => $address->id,
             'payment_method'      => 'cod',
             'billing_same'        => '1',
-        ])->assertSessionHasErrors('cart');
+        ])->assertRedirect();
 
-        Event::assertNotDispatched(OrderPlaced::class);
-        Queue::assertNotPushed(ProcessOrder::class);
+        Event::assertDispatched(OrderPlaced::class);
+        Queue::assertPushed(ProcessOrder::class);
 
-        $this->assertSame(0, Order::count());
-        $this->assertSame(0, OrderItem::count());
-        $this->assertSame(1, CartItem::count());
-        $this->assertSame(1, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
+        $this->assertSame(1, Order::count());
+        $this->assertSame(1, OrderItem::count());
+        $this->assertSame(0, CartItem::count());
+        $this->assertSame(0, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
     }
 
     /*

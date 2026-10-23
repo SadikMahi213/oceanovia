@@ -62,6 +62,12 @@ class CodCollectionService
         $order->loadMissing('items');
 
         foreach ($order->items as $item) {
+            // Stock-held items are not billable yet: no cash to collect until
+            // the seller/supplier confirms the shortfall is sourced.
+            if ($item->status === OrderItem::STATUS_AWAITING_STOCK) {
+                continue;
+            }
+
             $collector = $this->resolveCollector($item);
 
             CodCollection::firstOrCreate(

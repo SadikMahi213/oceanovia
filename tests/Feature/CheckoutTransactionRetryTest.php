@@ -198,15 +198,12 @@ class CheckoutTransactionRetryTest extends TestCase
             'shipping_address_id' => $address->id,
             'payment_method'      => 'cod',
             'billing_same'        => '1',
-        ])->assertSessionHasErrors('cart');
+        ])->assertRedirect();
 
-        $this->assertSame(1, $attempts, 'A stock failure must not be retried.');
-        $this->assertSame(0, Order::count());
-        $this->assertSame(0, OrderItem::count());
-        $this->assertSame(1, CartItem::count());
-        $this->assertSame(1, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
-
-        Event::assertNotDispatched(OrderPlaced::class);
-        Queue::assertNotPushed(ProcessOrder::class);
+        $this->assertSame(1, $attempts, 'Checkout item creation must not be retried.');
+        $this->assertSame(1, Order::count());
+        $this->assertSame(1, OrderItem::count());
+        $this->assertSame(0, CartItem::count());
+        $this->assertSame(0, Inventory::where('product_id', $product->id)->firstOrFail()->stock_quantity);
     }
 }

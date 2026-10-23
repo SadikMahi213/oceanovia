@@ -13,7 +13,9 @@ use App\Services\InventoryService;
 use App\Services\OrderCancellationService;
 use App\Services\PayoutService;
 use App\Services\ProcurementService;
+use App\Services\RefundService;
 use App\Services\ShippingService;
+use App\Services\StockHoldService;
 use App\Services\TaxService;
 use App\Support\PaymentGateway;
 use Illuminate\Http\RedirectResponse;
@@ -205,21 +207,48 @@ class CheckoutController extends Controller
                 ]);
             }
 
-            $subtotal = $cart->total;
+            // Partition the cart against available stock: reserve only what can
+            // be fulfilled and track the shortfall per item as held. This runs
+            // inside the transaction and uses the same locked-row protocol.
+            $partition = app(InventoryService::class)->partitionForCart($cart);
 
-            // Calculate shipping per vendor (multivendor)
+            // Confirmed-only subtotal: held items are not billable.
+            $confirmedSubtotal = 0.0;
+            foreach ($cart->items as $item) {
+                $confirmedQty = $partition->confirmedQuantity($item->id);
+                $confirmedSubtotal += (float) $item->unit_price * $confirmedQty;
+            }
+            $subtotal = round($confirmedSubtotal, 2);
+
+            // Shipping is calculated on the confirmed items only. Build a
+            // transient cart carrying the confirmed quantities for the existing
+            // vendor-grouped shipping calculation.
+            $shippingCart = new \App\Models\Cart();
+            $shippingItems = collect();
+            foreach ($cart->items as $item) {
+                $confirmedQty = $partition->confirmedQuantity($item->id);
+                if ($confirmedQty <= 0) {
+                    continue;
+                }
+                $ci = new \App\Models\CartItem();
+                $ci->product_id = $item->product_id;
+                $ci->quantity = $confirmedQty;
+                $ci->unit_price = $item->unit_price;
+                $ci->setRelation('product', $item->product);
+                $shippingItems->push($ci);
+            }
+            $shippingCart->setRelation('items', $shippingItems);
+
             $shippingService = app(ShippingService::class);
-            $shippingResult = $shippingService->calculate($cart, $shippingAddress);
+            $shippingResult = $shippingService->calculate($shippingCart, $shippingAddress);
             $shippingCost = $shippingResult['total'];
 
-            // Calculate tax based on shipping address state
             $taxService = app(TaxService::class);
             $taxResult = $taxService->calculate($subtotal, $shippingAddress->state);
             $tax = $taxResult['amount'];
 
             $discount = 0;
 
-            // Validate coupon early to include discount in initial total
             $coupon = null;
             if ($request->filled('coupon_code')) {
                 $couponService = app(CouponService::class);
@@ -246,6 +275,8 @@ class CheckoutController extends Controller
 
             foreach ($cart->items as $item) {
                 $product = $item->product;
+                $heldQty = $partition->heldQuantity($item->id);
+                $confirmedQty = $partition->confirmedQuantity($item->id);
 
                 OrderItem::create([
                     'order_id' => $order->id,
@@ -257,8 +288,11 @@ class CheckoutController extends Controller
                     'product_name' => $product->name,
                     'sku' => $product->sku,
                     'quantity' => $item->quantity,
+                    'held_quantity' => $heldQty,
+                    'stock_held_at' => $heldQty > 0 ? now() : null,
                     'unit_price' => $item->unit_price,
-                    'subtotal' => $item->unit_price * $item->quantity,
+                    'subtotal' => $item->unit_price * $confirmedQty,
+                    'status' => $heldQty > 0 ? OrderItem::STATUS_AWAITING_STOCK : 'pending',
                 ]);
             }
 
@@ -266,23 +300,20 @@ class CheckoutController extends Controller
                 app(CouponService::class)->apply($coupon, $order, $user);
             }
 
-            // Create commissions exactly once (idempotent)
             app(CommissionService::class)->createCommissions($order);
-
-            // DO NOT credit seller balances here — moved to post-payment confirmation
-            // Seller credit now happens in success() or webhook() after Stripe confirms payment
-
-            // Decrement inventory to prevent overselling
-            // (sourced items reserve supplier source stock instead)
-            app(InventoryService::class)->reserveAndDecrementForCart($cart);
 
             $cart->items()->delete();
 
             // Cash on delivery is completed inside the transaction, so a
             // failure while opening the procurement order or the cash
             // collection rolls the order, the stock movement and the cart
-            // consumption back together.
-            if ($request->payment_method === 'cod') {
+            // consumption back together. Only finalise when there is at least
+            // one confirmed (billable) item; an all-held order stays pending.
+            $hasConfirmedItem = $order->items()
+                ->where('status', '!=', OrderItem::STATUS_AWAITING_STOCK)
+                ->exists();
+
+            if ($request->payment_method === 'cod' && $hasConfirmedItem) {
                 app(CheckoutService::class)->finaliseCodOrder($order);
             }
 
@@ -298,8 +329,24 @@ class CheckoutController extends Controller
         // a failing notification or audit job must not fail the request.
         app(CheckoutService::class)->dispatchPostCommitEffects($order);
 
+        // Notify sellers/suppliers and the customer about any held items.
+        foreach ($order->items()->where('status', OrderItem::STATUS_AWAITING_STOCK)->get() as $heldItem) {
+            app(StockHoldService::class)->notifyHeldItem($heldItem);
+        }
+
         if ($request->payment_method === 'stripe') {
+            // A zero-total / all-held order must never be sent to Stripe.
+            if ((float) $order->total <= 0) {
+                return redirect()->route('orders.show', $order)
+                    ->with('success', 'Order placed. Some items are awaiting stock confirmation.');
+            }
+
             return redirect()->route('checkout.stripe', $order);
+        }
+
+        if ($order->items()->where('status', OrderItem::STATUS_AWAITING_STOCK)->exists()) {
+            return redirect()->route('orders.show', $order)
+                ->with('success', 'Order placed. Some items are awaiting stock confirmation.');
         }
 
         return redirect()->route('orders.show', $order)
@@ -322,6 +369,12 @@ class CheckoutController extends Controller
                 ->with('error', 'This order has been cancelled and can no longer be paid.');
         }
 
+        // A zero-total / all-held order must never be sent to Stripe.
+        if ((float) $order->total <= 0 || ! $order->items()->where('status', '!=', OrderItem::STATUS_AWAITING_STOCK)->exists()) {
+            return redirect()->route('orders.show', $order)
+                ->with('success', 'Order placed. Some items are awaiting stock confirmation.');
+        }
+
         // The card gateway needs a full Stripe configuration. Without one the
         // SDK call would fail with a 500, so refuse before touching Stripe.
         if (! PaymentGateway::stripeConfigured()) {
@@ -334,6 +387,20 @@ class CheckoutController extends Controller
         $lineItems = [];
         $itemTotal = 0;
         foreach ($order->items as $item) {
+            if (in_array($item->status, ['cancelled', 'returned'], true)) {
+                continue;
+            }
+
+            // Held items are not payable: only the confirmed portion of a
+            // partially-held item enters the session.
+            $payableQty = $item->status === OrderItem::STATUS_AWAITING_STOCK
+                ? $item->confirmedQuantity()
+                : (int) $item->quantity;
+
+            if ($payableQty <= 0) {
+                continue;
+            }
+
             $unitAmount = (int) round($item->unit_price * 100);
             $lineItems[] = [
                 'price_data' => [
@@ -344,9 +411,9 @@ class CheckoutController extends Controller
                     ],
                     'unit_amount' => $unitAmount,
                 ],
-                'quantity' => $item->quantity,
+                'quantity' => $payableQty,
             ];
-            $itemTotal += $unitAmount * $item->quantity;
+            $itemTotal += $unitAmount * $payableQty;
         }
 
         // Ensure Stripe is charged exactly the order total (tax/discount/shipping adjustments)
@@ -509,10 +576,25 @@ class CheckoutController extends Controller
 
         if ($event->type === 'charge.refunded') {
             $charge = $event->data->object;
-            $paymentIntentId = $charge->payment_intent;
+            $paymentIntentId = (string) ($charge->payment_intent ?? '');
 
             $order = Order::where('stripe_payment_intent_id', $paymentIntentId)->first();
-            if ($order && $order->payment_status !== 'refunded') {
+
+            // Reconcile each provider refund locally: create or finalize the
+            // refund, reverse the covered seller credits and the commission.
+            $refundService = app(RefundService::class);
+            $refunds = $charge->refunds->data ?? [];
+
+            foreach ($refunds as $providerRefund) {
+                $refundService->recordProviderRefund(
+                    (string) $providerRefund->id,
+                    $paymentIntentId,
+                    (int) ($providerRefund->amount ?? 0),
+                    (string) ($providerRefund->currency ?? ''),
+                );
+            }
+
+            if ($order && $order->fresh()->payment_status !== 'refunded') {
                 $order->update(['payment_status' => 'refunded']);
             }
         }
@@ -526,6 +608,10 @@ class CheckoutController extends Controller
         $commissionService = app(CommissionService::class);
         $order->load('items');
         foreach ($order->items as $item) {
+            if ($item->status === OrderItem::STATUS_AWAITING_STOCK) {
+                continue;
+            }
+
             if ($item->seller_id) {
                 // Sourced items: credit the seller's margin
                 // (retail - platform commission - sourcing cost). Imported/custom

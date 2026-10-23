@@ -24,6 +24,7 @@ use App\Services\AuditService;
 use App\Services\OrderCancellationService;
 use App\Services\ProcurementService;
 use App\Services\RefundService;
+use App\Services\StockHoldService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -581,6 +582,31 @@ class SellerController extends Controller
         app(ProcurementService::class)->syncForOrder($order);
 
         return redirect()->back()->with('success', 'Order status updated to ' . ucfirst($validated['status']) . '.');
+    }
+
+    public function confirmStock(Order $order, OrderItem $item): RedirectResponse
+    {
+        if ($item->order_id !== $order->id || $item->seller_id !== auth()->id()) {
+            abort(403);
+        }
+
+        $confirmed = app(StockHoldService::class)->confirm($item, auth()->id());
+
+        return redirect()->back()->with(
+            'success',
+            $confirmed ? 'Stock confirmed for the item.' : 'Partial stock confirmed; the item is still awaiting the remaining units.'
+        );
+    }
+
+    public function declineStock(Order $order, OrderItem $item): RedirectResponse
+    {
+        if ($item->order_id !== $order->id || $item->seller_id !== auth()->id()) {
+            abort(403);
+        }
+
+        app(StockHoldService::class)->decline($item, auth()->id());
+
+        return redirect()->back()->with('success', 'Stock declined for the item.');
     }
 
     public function profile(): View

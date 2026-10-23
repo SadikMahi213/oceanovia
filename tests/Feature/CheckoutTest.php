@@ -8,6 +8,7 @@ use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Inventory;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -404,10 +405,15 @@ class CheckoutTest extends TestCase
             'billing_country' => 'US',
         ]);
 
-        $response->assertSessionHasErrors('cart');
-        $this->assertSame(0, Order::count());
-        $this->assertSame(0, Address::where('user_id', $user->id)->count());
-        $this->assertSame(1, CartItem::whereHas('cart', fn ($query) => $query->where('user_id', $user->id))->count());
+        $response->assertRedirect();
+        $this->assertSame(1, Order::count());
+        $order = Order::firstOrFail();
+        $this->assertSame(2, Address::where('user_id', $user->id)->count());
+        $this->assertSame(0, CartItem::whereHas('cart', fn ($query) => $query->where('user_id', $user->id))->count());
+        $this->assertSame(1, OrderItem::where('order_id', $order->id)->where('status', 'awaiting_stock')->count());
+        $item = OrderItem::where('order_id', $order->id)->firstOrFail();
+        $this->assertSame(1, $item->held_quantity);
+        $this->assertSame(0.0, (float) $order->total);
     }
 
     public function test_checkout_form_has_one_shipping_phone_and_billing_controls(): void

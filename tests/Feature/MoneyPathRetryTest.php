@@ -663,10 +663,9 @@ class MoneyPathRetryTest extends TestCase
     public function test_a_payout_completion_marks_the_payout_and_the_commissions(): void
     {
         $seller = $this->seller(100.00);
+        $commission = $this->pendingCommission($seller, 45.00);
         $payout = $this->pendingPayout($seller, 50.00);
         $payout->update(['status' => 'approved']);
-
-        $commission = $this->pendingCommission($seller);
 
         app(PayoutService::class)->complete($payout);
 
@@ -676,13 +675,30 @@ class MoneyPathRetryTest extends TestCase
         $this->assertSame($payout->id, $commission->fresh()->payout_id);
     }
 
-    public function test_a_repeated_payout_completion_keeps_the_commissions_paid_once(): void
+    public function test_a_payout_only_marks_the_commissions_it_covers(): void
     {
         $seller = $this->seller(100.00);
+
+        // Two pending commissions of 60.00: only the first fits into the
+        // 50.00 payout, so only it may be marked as paid.
+        $first = $this->pendingCommission($seller, 60.00);
+        $second = $this->pendingCommission($seller, 60.00);
+
         $payout = $this->pendingPayout($seller, 50.00);
         $payout->update(['status' => 'approved']);
 
-        $commission = $this->pendingCommission($seller);
+        app(PayoutService::class)->complete($payout);
+
+        $this->assertSame('paid', $first->fresh()->status);
+        $this->assertSame('pending', $second->fresh()->status, 'A commission outside the payout must stay pending.');
+    }
+
+    public function test_a_repeated_payout_completion_keeps_the_commissions_paid_once(): void
+    {
+        $seller = $this->seller(100.00);
+        $commission = $this->pendingCommission($seller, 45.00);
+        $payout = $this->pendingPayout($seller, 50.00);
+        $payout->update(['status' => 'approved']);
 
         app(PayoutService::class)->complete($payout);
         app(PayoutService::class)->complete($payout->fresh());

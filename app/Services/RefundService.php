@@ -5,10 +5,14 @@ namespace App\Services;
 use App\Exceptions\RefundStateException;
 use App\Models\Commission;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Refund;
+use App\Models\RefundReversal;
 use App\Models\User;
+use App\Support\RefundCalculator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
@@ -40,10 +44,21 @@ class RefundService
                 throw new NotFoundHttpException('This order is not eligible for a refund.');
             }
 
+            $item = $orderItemId !== null
+                ? $order->items()->whereKey($orderItemId)->firstOrFail()
+                : null;
+
             if ($amount === null) {
-                $amount = $orderItemId
-                    ? $order->items()->findOrFail($orderItemId)->subtotal
-                    : $order->total;
+                $amount = $item ? (float) $item->subtotal : (float) $order->total;
+            }
+
+            $amount = round((float) $amount, 2);
+            $refundable = $this->remainingRefundable($order, $item);
+
+            if ($amount > $refundable) {
+                throw ValidationException::withMessages([
+                    'amount' => 'The refund amount exceeds what is still refundable for this order.',
+                ]);
             }
 
             return Refund::create([
@@ -55,6 +70,27 @@ class RefundService
                 'status'        => 'pending',
             ]);
         });
+    }
+
+    /**
+     * How much of an order (or of one item) can still be refunded, taking
+     * every refund that was approved or completed into account.
+     */
+    private function remainingRefundable(Order $order, ?OrderItem $item = null): float
+    {
+        $query = Refund::where('order_id', $order->id)
+            ->whereIn('status', ['pending', 'approved', self::STATUS_STRIPE_REFUNDED, 'completed']);
+
+        if ($item !== null) {
+            $query->where('order_item_id', $item->id);
+            $alreadyRequested = (float) $query->sum('amount');
+            $ceiling = (float) $item->subtotal;
+        } else {
+            $alreadyRequested = (float) $query->sum('amount');
+            $ceiling = (float) $order->items->sum('subtotal');
+        }
+
+        return max(0.0, round($ceiling - $alreadyRequested, 2));
     }
 
     /**
@@ -196,21 +232,60 @@ class RefundService
     {
         $order = $refund->order;
 
-        if ($order->status !== 'refunded') {
+        $this->reverseSellerCredits($refund, $order);
+
+        $reversedItemIds = RefundReversal::where('refund_id', $refund->getKey())
+            ->pluck('order_item_id')
+            ->all();
+
+        if ($this->isFullyRefunded($order, $refund, $reversedItemIds)) {
             $order->update(['status' => 'refunded', 'payment_status' => 'refunded']);
-            $this->reverseCommission($order, $refund->order_item_id);
         }
 
-        $refund->update(['status' => 'completed']);
+        $reversedTotal = RefundReversal::where('refund_id', $refund->getKey())->sum('refund_amount');
+
+        $refund->update([
+            'status' => 'completed',
+            'reversed_amount' => $reversedTotal,
+        ]);
 
         app(AuditService::class)->logFinancial('refund_completed', $refund, [
             'order_id'         => $refund->order_id,
             'order_item_id'    => $refund->order_item_id,
             'amount'           => $refund->amount,
+            'reversed_amount'  => (float) $reversedTotal,
             'refund_method'    => $refund->refund_method,
             'completed_by'     => $by,
             'completion_notes' => $notes,
         ]);
+    }
+
+    /**
+     * Whether refunding the given items leaves nothing of the order
+     * outstanding. Only then is the whole order marked refunded.
+     */
+    private function isFullyRefunded(Order $order, Refund $refund, array $reversedItemIds): bool
+    {
+        $items = $order->items;
+
+        if ($items->isEmpty()) {
+            return true;
+        }
+
+        $reversedByItem = RefundReversal::whereIn('order_item_id', $items->pluck('id'))
+            ->selectRaw('order_item_id, SUM(refund_amount) as total')
+            ->groupBy('order_item_id')
+            ->pluck('total', 'order_item_id');
+
+        foreach ($items as $item) {
+            $reversed = (float) ($reversedByItem[$item->id] ?? 0);
+
+            if (round($reversed, 2) < round((float) $item->subtotal, 2)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function reject(Refund $refund, int $approvedBy, string $reason = ''): void
@@ -336,6 +411,117 @@ class RefundService
      * one transaction, so they are applied exactly once: a rollback undoes
      * them, and a repeated attempt finds the refund completed.
      */
+    /**
+     * Reconcile a refund the payment provider reports through a webhook
+     * ("charge.refunded").
+     *
+     * The provider already moved the money, so the local state is brought
+     * forward without sending anything back to the provider. When a local
+     * refund already describes the provider refund, it is finalized. When
+     * the provider refunded outside the local workflow (for example from the
+     * Stripe dashboard), a completed refund row is created so the books stay
+     * consistent.
+     */
+    public function recordProviderRefund(
+        string $providerRefundId,
+        string $paymentIntentId,
+        int $amountInCents,
+        ?string $currency = null,
+    ): void {
+        $existing = Refund::where('stripe_refund_id', $providerRefundId)->first();
+
+        if ($existing !== null) {
+            $this->resumeProviderRefund($existing);
+
+            return;
+        }
+
+        $order = Order::where('stripe_payment_intent_id', $paymentIntentId)->first();
+
+        if ($order === null) {
+            Log::warning('A provider refund has no matching order', [
+                'stripe_refund_id' => $providerRefundId,
+                'payment_intent'   => $paymentIntentId,
+            ]);
+
+            return;
+        }
+
+        $refund = Refund::where('order_id', $order->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->orderBy('created_at')
+            ->first();
+
+        if ($refund !== null) {
+            // The local workflow already describes this refund. Record the
+            // provider identity and the fact the provider refunded, then
+            // resume the finalization.
+            DB::transaction(function () use ($refund, $providerRefundId) {
+                $locked = Refund::whereKey($refund->getKey())->lockForUpdate()->firstOrFail();
+
+                $attributes = ['stripe_refunded_at' => now()];
+
+                if (blank($locked->stripe_refund_id)) {
+                    $attributes['stripe_refund_id'] = $providerRefundId;
+                }
+
+                if (in_array($locked->status, ['pending', 'approved'], true)) {
+                    $attributes['status'] = self::STATUS_STRIPE_REFUNDED;
+                }
+
+                $locked->update($attributes);
+            });
+
+            $this->resumeProviderRefund($refund->fresh());
+
+            return;
+        }
+
+        $amount = round($amountInCents / 100, 2);
+
+        $refund = Refund::create([
+            'order_id'           => $order->id,
+            'user_id'            => $order->user_id,
+            'amount'             => $amount,
+            'reason'             => 'Refund reported by the payment provider',
+            'status'             => self::STATUS_STRIPE_REFUNDED,
+            'refund_method'      => 'stripe',
+            'stripe_refund_id'   => $providerRefundId,
+            'stripe_refunded_at' => now(),
+            'approved_at'        => now(),
+        ]);
+
+        $this->finalizeCardRefund($refund->fresh());
+    }
+
+    /**
+     * Bring a provider-confirmed refund to its local final state.
+     */
+    private function resumeProviderRefund(Refund $refund): void
+    {
+        if (in_array($refund->status, [self::STATUS_STRIPE_REFUNDED], true)) {
+            $this->finalizeCardRefund($refund);
+
+            return;
+        }
+
+        if ($refund->status === 'completed') {
+            return;
+        }
+
+        if ($refund->status === 'approved') {
+            DB::transaction(function () use ($refund) {
+                $locked = Refund::whereKey($refund->getKey())->lockForUpdate()->firstOrFail();
+
+                if ($locked->status === 'approved') {
+                    $locked->update(['status' => self::STATUS_STRIPE_REFUNDED]);
+                }
+            });
+
+            $this->finalizeCardRefund($refund->fresh());
+        }
+    }
+
     private function finalizeCardRefund(Refund $refund): void
     {
         DB::transaction(function () use ($refund) {
@@ -355,43 +541,91 @@ class RefundService
         });
     }
 
-    private function reverseCommission(Order $order, ?int $orderItemId = null): void
+    /**
+     * Reverse the seller credits that the refund covers.
+     *
+     * The refund is allocated to the order's items proportionally, so a
+     * partial refund reverses only the share of an item it covers, and an
+     * item can never be reversed for more than its value. Every reversal is
+     * recorded as a RefundReversal and, when a seller credit is actually
+     * given back, as a ledgered debit, so a repeated finalization cannot
+     * reverse the same money twice.
+     */
+    private function reverseSellerCredits(Refund $refund, Order $order): void
     {
-        $itemIds = $orderItemId !== null
-            ? [$orderItemId]
-            : $order->items->pluck('id')->all();
+        if (RefundReversal::where('refund_id', $refund->getKey())->exists()) {
+            $this->reverseCommissions($order, $this->reversedItemIdsFor($refund));
 
-        Commission::whereIn('order_item_id', $itemIds)
-            ->where('status', 'pending')
-            ->update(['status' => 'reversed']);
+            return;
+        }
 
+        $allocations = app(RefundCalculator::class)->allocate($order, $refund);
         $payoutService = app(PayoutService::class);
-        $commissionService = app(CommissionService::class);
 
-        // Sellers are credited NET (subtotal − commission) on payment, so reverse the net credit.
-        foreach ($order->items->whereIn('id', $itemIds) as $item) {
-            if (!$item->seller_id) {
+        foreach ($allocations as $allocation) {
+            /** @var OrderItem $item */
+            $item = $allocation['item'];
+
+            RefundReversal::create([
+                'refund_id'      => $refund->getKey(),
+                'order_item_id'  => $item->id,
+                'seller_id'      => $item->seller_id ?? (int) $order->items->firstWhere('id', $item->id)?->seller_id,
+                'refund_amount'  => $allocation['refund_amount'],
+                'net_amount'     => $allocation['net_amount'],
+            ]);
+
+            if (! $item->seller_id || $allocation['net_amount'] <= 0) {
                 continue;
             }
 
-            $net = $commissionService->netForItem($item);
             $balance = $payoutService->getBalance($item->seller_id);
 
-            $reversal = min($net, max(0.0, (float) $balance->balance));
+            // A seller can only give back money that is still on the
+            // balance. The uncredited part of a COD order is not clawed
+            // back into a negative balance.
+            $reversal = min($allocation['net_amount'], max(0.0, (float) $balance->balance));
 
             if ($reversal <= 0) {
                 continue;
             }
 
-            $balance->decrement('balance', $reversal);
-            $balance->decrement('total_earned', $reversal);
-
-            app(AuditService::class)->logFinancial('seller_credit_reversal', $balance, [
-                'seller_id' => $item->seller_id,
-                'amount'    => $reversal,
-                'order_id'  => $order->id,
-                'order_item_id' => $item->id,
+            $payoutService->reverse($item->seller_id, $reversal, [
+                'reference_type' => Refund::class,
+                'reference_id'   => $refund->getKey(),
+                'description'    => 'Refund reversal',
             ]);
         }
+
+        $this->reverseCommissions($order, $this->reversedItemIdsFor($refund));
+    }
+
+    /**
+     * Mark a commission reversed once its item has been refunded in full.
+     */
+    private function reverseCommissions(Order $order, array $reversedItemIds): void
+    {
+        $reversedByItem = RefundReversal::whereIn('order_item_id', $reversedItemIds)
+            ->selectRaw('order_item_id, SUM(refund_amount) as total')
+            ->groupBy('order_item_id')
+            ->pluck('total', 'order_item_id');
+
+        foreach ($order->items->whereIn('id', $reversedItemIds) as $item) {
+            $reversed = (float) ($reversedByItem[$item->id] ?? 0);
+
+            if (round($reversed, 2) < round((float) $item->subtotal, 2)) {
+                continue;
+            }
+
+            Commission::where('order_item_id', $item->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'reversed']);
+        }
+    }
+
+    private function reversedItemIdsFor(Refund $refund): array
+    {
+        return RefundReversal::where('refund_id', $refund->getKey())
+            ->pluck('order_item_id')
+            ->all();
     }
 }
