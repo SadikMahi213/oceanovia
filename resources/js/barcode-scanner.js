@@ -257,7 +257,7 @@ export function barcodeScanner(target, readerId) {
             // Move keyboard focus into the modal: focus the close button so
             // the operator can dismiss it without a mouse.
             setTimeout(() => {
-                const closeButton = document.querySelector('[aria-label="Close the scanner"]');
+                const closeButton = document.querySelector('[aria-label="Close scanner"]');
                 if (closeButton && typeof closeButton.focus === 'function') {
                     closeButton.focus();
                 }
